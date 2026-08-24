@@ -11,6 +11,7 @@ use App\Models\Bandara;
 use App\Models\Threshold;
 use Carbon\Carbon;
 use App\Exports\RekapBulananExport;
+use Illuminate\Support\Facades\DB;
 
 class RekapBulananController extends Controller
 {
@@ -19,12 +20,35 @@ class RekapBulananController extends Controller
         $bulan = $request->get('bulan', Carbon::now()->month);
         $tahun = $request->get('tahun', Carbon::now()->year);
 
+        // ⚠️ BARU: paksa scoping dari SESSION, bukan dari query string.
+        // Pakai helper isBandaraLocked() di base Controller biar konsisten
+        // di semua modul (lihat app/Http/Controllers/Controller.php).
+        $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
+        $idBandara = session('pengguna.id_bandara');
+        $idUnit    = session('pengguna.id_unit');
+        $unit      = $idUnit ? \App\Models\UnitKerja::find($idUnit) : null;
+
         $data = HasilBulanan::with(['alat.lokasi.bandara', 'alat.kategori'])
             ->where('bulan', $bulan)
             ->where('tahun', $tahun)
-            ->when($request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
+            ->when($isLocked, fn($q) => $q->whereHas('alat.lokasi',
+                fn($q) => $q->where('id_bandara', $idBandara)
+            ))
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q) => $q->where('id_bandara', $request->id_bandara)
             ))
+            // ⚠️ BARU: khusus CGK — kalau akun terikat 1 unit kerja spesifik
+            // (mis. SSES T2), rekap cuma nampilin terminal & jenis alat unit itu.
+            ->when($unit, function ($q) use ($unit) {
+                if ($unit->id_lokasi) {
+                    $q->whereHas('alat', fn($q2) => $q2->where('id_lokasi', $unit->id_lokasi));
+                }
+                if (!empty($unit->cakupan_alat)) {
+                    $cakupanLower = array_map('strtolower', $unit->cakupan_alat);
+                    $q->whereHas('alat', fn($q2) => $q2->whereIn(DB::raw('LOWER(jenis_alat)'), $cakupanLower));
+                }
+            })
             ->get()
             ->sortBy([
                 fn($a, $b) => strcmp(
@@ -46,9 +70,13 @@ class RekapBulananController extends Controller
                 )
             );
 
-        $bandara = Bandara::orderBy('nama_bandara')->get();
+        // Dropdown filter bandara: role terkunci cuma lihat bandaranya sendiri
+        // (view juga akan sembunyikan dropdown-nya, ini lapisan kedua)
+        $bandara = $isLocked
+            ? Bandara::where('id_bandara', $idBandara)->get()
+            : Bandara::orderBy('nama_bandara')->get();
 
-        return view('admin.rekap-bulanan.index', compact('rekap', 'bandara', 'bulan', 'tahun'));
+        return view('admin.rekap-bulanan.index', compact('rekap', 'bandara', 'bulan', 'tahun', 'isLocked'));
     }
 
     public function generate(Request $request)
@@ -132,10 +160,22 @@ class RekapBulananController extends Controller
             'tahun' => 'required|integer|min:2000|max:2100',
         ]);
 
+        // ⚠️ BARU: samain aturan scoping-nya sama index() — role terkunci
+        // (afet_bandara, div_head, gm_kc) TIDAK boleh nentuin id_bandara
+        // sendiri lewat request, dipaksa dari session.
+        $role             = session('pengguna.role');
+        $isLocked         = $this->isBandaraLocked($role);
+
+        $idBandara = $isLocked
+            ? session('pengguna.id_bandara')
+            : $request->id_bandara; // afet_regional/ho/ceo boleh pilih / kosongin (semua bandara)
+        $idUnit = session('pengguna.id_unit');
+
         $export = new RekapBulananExport(
             $request->bulan,
             $request->tahun,
-            $request->id_bandara
+            $idBandara,
+            $idUnit
         );
 
         return $export->export();

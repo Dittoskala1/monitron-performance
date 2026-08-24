@@ -154,7 +154,7 @@
     <div class="card-body">
         <div class="row g-3 align-items-end">
 
-            @if(session('pengguna.role') === 'afet_regional')
+            @if(!$isLocked)
             <div class="col-md-4">
                 <label class="form-label fw-semibold">Bandara</label>
                 <select id="filterBandara" class="form-select">

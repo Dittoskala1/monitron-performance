@@ -291,12 +291,12 @@
                             <i class="bi {{ $iconDokumen($dok->tipe_file) }} fs-5"></i>
                             <span class="small text-truncate" title="{{ $dok->nama_file }}">{{ $dok->nama_file }}</span>
                         </div>
-                        <div class="d-flex gap-1 ms-2 flex-shrink-0">
-                            <a href="{{ asset('storage/' . $dok->path_file) }}" target="_blank"
-                               class="btn btn-sm btn-outline-primary" title="Lihat / Unduh">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                        </div>
+                        <a href="{{ route('admin.peralatan-mutasi.download-dokumen', $dok->id_dokumen) }}"
+                            target="_blank"
+                                class="btn btn-sm btn-outline-primary"
+                                    title="Lihat / Unduh">
+                                        <i class="bi bi-eye"></i>
+                        </a>
                     </div>
                 </div>
                 @endforeach

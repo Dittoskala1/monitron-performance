@@ -22,6 +22,10 @@ Route::get('/',        [AuthWebController::class, 'showLogin'])->name('login');
 Route::post('/login',  [AuthWebController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthWebController::class, 'logout'])->name('logout');
 
+//FORGOT PASSWORD
+Route::get('/lupa-password',  [AuthWebController::class, 'showForgotPassword'])->name('password.forgot');
+Route::post('/lupa-password', [AuthWebController::class, 'resetPassword'])->name('password.reset');
+
 // ==========================================
 // DASHBOARD ADMIN (Semua yang login)
 // ==========================================
@@ -157,82 +161,93 @@ Route::middleware('auth.web')->prefix('admin')->name('admin.')->group(function (
     // ==========================================
     // PERALATAN MUTASI
     // ==========================================
+    // ==========================================
+// PERALATAN MUTASI
+// ==========================================
     Route::prefix('peralatan-mutasi')->name('peralatan-mutasi.')->group(function () {
 
         Route::get('/', [PengajuanMutasiController::class, 'index'])
             ->middleware('permission:mutasi.view')
             ->name('index');
-    
-        // Input Mapping Kebutuhan — dari booking
+
+    // Input Mapping Kebutuhan — dari booking
         Route::get('/create/{idBooking}', [PengajuanMutasiController::class, 'create'])
             ->middleware('permission:mutasi.create')
             ->name('create');
+
         Route::post('/', [PengajuanMutasiController::class, 'store'])
             ->middleware('permission:mutasi.create')
             ->name('store');
-    
-        Route::get('/{id}', [PengajuanMutasiController::class, 'show'])
-            ->middleware('permission:mutasi.view')
-            ->name('show');
-    
-        // CEO approve/reject pertama
-        Route::post('/{id}/approve-ceo', [PengajuanMutasiController::class, 'approveCeo'])
-            ->middleware('permission:mutasi.approve')
-            ->name('approve-ceo');
-        Route::post('/{id}/reject-ceo', [PengajuanMutasiController::class, 'rejectCeo'])
-            ->middleware('permission:mutasi.reject')
-            ->name('reject-ceo');
-    
-        // GM Pemberi approve/reject
-        Route::post('/{id}/approve-gm', [PengajuanMutasiController::class, 'approveGm'])
-            ->middleware('permission:mutasi.approve')
-            ->name('approve-gm');
-        Route::post('/{id}/reject-gm', [PengajuanMutasiController::class, 'rejectGm'])
-            ->middleware('permission:mutasi.approve')
-            ->name('reject-gm');
-    
-        // CEO teruskan keputusan GM
-        Route::post('/{id}/teruskan-ceo', [PengajuanMutasiController::class, 'teruskanCeo'])
-            ->middleware('permission:mutasi.approve')
-            ->name('teruskan-ceo');
-    
-        // Pemastian Fasilitas Idle (sebelum mobilisasi)
-        Route::post('/{id}/upload-ba-idle', [PengajuanMutasiController::class, 'uploadBaIdle'])
-            ->middleware('permission:mutasi.konfirmasi-idle')
-            ->name('upload-ba-idle');
-        Route::post('/{id}/konfirmasi-idle', [PengajuanMutasiController::class, 'konfirmasiIdle'])
-            ->middleware('permission:mutasi.approve')
-            ->name('konfirmasi-idle');
-    
-        // Mobilisasi
-        Route::post('/{id}/mobilisasi', [PengajuanMutasiController::class, 'mobilisasi'])
-            ->middleware('permission:mutasi.konfirmasi-idle')
-            ->name('mobilisasi');
-    
-        // Verifikasi Mobilisasi (3 tanda tangan digital)
-        Route::post('/{id}/verifikasi-regional', [PengajuanMutasiController::class, 'verifikasiRegional'])
-            ->middleware('permission:mutasi.approve')
-            ->name('verifikasi-regional');
-        Route::post('/{id}/verifikasi-penerima', [PengajuanMutasiController::class, 'verifikasiPenerima'])
-            ->middleware('permission:mutasi.konfirmasi-idle')
-            ->name('verifikasi-penerima');
-        Route::post('/{id}/verifikasi-pemberi', [PengajuanMutasiController::class, 'verifikasiPemberi'])
-            ->middleware('permission:mutasi.konfirmasi-idle')
-            ->name('verifikasi-pemberi');
-    
-        // Sertifikasi
-        Route::post('/{id}/sertifikasi', [PengajuanMutasiController::class, 'sertifikasi'])
-            ->middleware('permission:mutasi.konfirmasi-idle')
-            ->name('sertifikasi');
-    
-        // Dokumen
-        Route::delete('/{idMutasi}/dokumen/{idDokumen}', [PengajuanMutasiController::class, 'deleteDokumen'])
-            ->middleware('permission:mutasi.create')
-            ->name('delete-dokumen');
-        Route::get('/dokumen/{idDokumen}/download', [PengajuanMutasiController::class, 'downloadDokumen'])
-            ->middleware('permission:mutasi.view')
-            ->name('download-dokumen');
-    });
+
+    Route::get('/{id}', [PengajuanMutasiController::class, 'show'])
+        ->middleware('permission:mutasi.view')
+        ->name('show');
+
+    // CEO approve/reject pertama
+    Route::post('/{id}/approve-ceo', [PengajuanMutasiController::class, 'approveCeo'])
+        ->middleware('permission:mutasi.approve')
+        ->name('approve-ceo');
+
+    Route::post('/{id}/reject-ceo', [PengajuanMutasiController::class, 'rejectCeo'])
+        ->middleware('permission:mutasi.reject')
+        ->name('reject-ceo');
+
+    // GM Pemberi approve/reject
+    Route::post('/{id}/approve-gm', [PengajuanMutasiController::class, 'approveGm'])
+        ->middleware('permission:mutasi.approve')
+        ->name('approve-gm');
+
+    Route::post('/{id}/reject-gm', [PengajuanMutasiController::class, 'rejectGm'])
+        ->middleware('permission:mutasi.approve')
+        ->name('reject-gm');
+
+    // CEO teruskan keputusan GM
+    Route::post('/{id}/teruskan-ceo', [PengajuanMutasiController::class, 'teruskanCeo'])
+        ->middleware('permission:mutasi.approve')
+        ->name('teruskan-ceo');
+
+    // Pemastian Fasilitas Idle
+    Route::post('/{id}/upload-ba-idle', [PengajuanMutasiController::class, 'uploadBaIdle'])
+        ->middleware('permission:mutasi.konfirmasi-idle')
+        ->name('upload-ba-idle');
+
+    Route::post('/{id}/konfirmasi-idle', [PengajuanMutasiController::class, 'konfirmasiIdle'])
+        ->middleware('permission:mutasi.approve')
+        ->name('konfirmasi-idle');
+
+    // Mobilisasi
+    Route::post('/{id}/mobilisasi', [PengajuanMutasiController::class, 'mobilisasi'])
+        ->middleware('permission:mutasi.konfirmasi-idle')
+        ->name('mobilisasi');
+
+    // Verifikasi Mobilisasi
+    Route::post('/{id}/verifikasi-regional', [PengajuanMutasiController::class, 'verifikasiRegional'])
+        ->middleware('permission:mutasi.approve')
+        ->name('verifikasi-regional');
+
+    Route::post('/{id}/verifikasi-penerima', [PengajuanMutasiController::class, 'verifikasiPenerima'])
+        ->middleware('permission:mutasi.konfirmasi-idle')
+        ->name('verifikasi-penerima');
+
+    Route::post('/{id}/verifikasi-pemberi', [PengajuanMutasiController::class, 'verifikasiPemberi'])
+        ->middleware('permission:mutasi.konfirmasi-idle')
+        ->name('verifikasi-pemberi');
+
+    // Sertifikasi
+    Route::post('/{id}/sertifikasi', [PengajuanMutasiController::class, 'sertifikasi'])
+        ->middleware('permission:mutasi.konfirmasi-idle')
+        ->name('sertifikasi');
+
+    // Dokumen
+    Route::delete('/{idMutasi}/dokumen/{idDokumen}', [PengajuanMutasiController::class, 'deleteDokumen'])
+        ->middleware('permission:mutasi.create')
+        ->name('delete-dokumen');
+
+    // Lihat / tampilkan dokumen
+    Route::get('/dokumen/{idDokumen}/download', [PengajuanMutasiController::class, 'downloadDokumen'])
+        ->middleware('permission:mutasi.view')
+        ->name('download-dokumen');
+});
 
     // ==========================================
     // DATA HARIAN
@@ -319,6 +334,11 @@ Route::middleware('auth.web')->prefix('admin')->name('admin.')->group(function (
         Route::post('/pengaturan/kategori',           [PengaturanController::class, 'storeKategori'])->name('pengaturan.kategori.store');
         Route::put('/pengaturan/kategori/{id}',       [PengaturanController::class, 'updateKategori'])->name('pengaturan.kategori.update');
         Route::delete('/pengaturan/kategori/{id}',    [PengaturanController::class, 'deleteKategori'])->name('pengaturan.kategori.delete');
+
+        // Unit Kerja
+        Route::post('/pengaturan/unit',               [PengaturanController::class, 'storeUnit'])->name('pengaturan.unit.store');
+        Route::put('/pengaturan/unit/{id}',           [PengaturanController::class, 'updateUnit'])->name('pengaturan.unit.update');
+        Route::delete('/pengaturan/unit/{id}',        [PengaturanController::class, 'deleteUnit'])->name('pengaturan.unit.delete');
     });
 
     // ==========================================

@@ -42,13 +42,17 @@ return new class extends Migration
 
             $table->text('alasan_idle')->nullable();
 
-            // Status sekarang 2 tahap approval (Div Head → Admin AFET)
+            // Status sekarang 2 tahap approval (Dep Head → Admin AFET)
+            // ⚠️ DIUBAH: sebelumnya 'Waiting Approval Div Head'. Sekarang Dep
+            // Head per unit kerja (mis. Dep Head SSES, Dep Head BHS, Dep Head
+            // SSIT di CGK) yang approve tahap 1, menggantikan Div Head.
+            // Div Head sekarang cuma "mengetahui" (permission idle.view).
             $table->enum('status', [
-                'Waiting Approval Div Head',
+                'Waiting Approval Dep Head',
                 'Waiting Approval Admin AFET',
                 'Approved',
                 'Rejected'
-            ])->default('Waiting Approval Div Head');
+            ])->default('Waiting Approval Dep Head');
 
             $table->text('alasan_reject')->nullable();
 
@@ -68,10 +72,12 @@ return new class extends Migration
             $table->unsignedBigInteger('id_pengguna_approval')->nullable();
             $table->foreign('id_pengguna_approval')->references('id_pengguna')->on('pengguna')->onDelete('set null');
 
-            // Approval tahap 1 (Div Head) — dicatat terpisah dari tahap final
-            $table->unsignedBigInteger('id_pengguna_approval_div_head')->nullable();
-            $table->foreign('id_pengguna_approval_div_head')->references('id_pengguna')->on('pengguna')->onDelete('set null');
-            $table->timestamp('tanggal_approval_div_head')->nullable();
+            // Approval tahap 1 (Dep Head) — dicatat terpisah dari tahap final
+            // ⚠️ DIUBAH: sebelumnya id_pengguna_approval_div_head /
+            // tanggal_approval_div_head, sekarang dep_head.
+            $table->unsignedBigInteger('id_pengguna_approval_dep_head')->nullable();
+            $table->foreign('id_pengguna_approval_dep_head')->references('id_pengguna')->on('pengguna')->onDelete('set null');
+            $table->timestamp('tanggal_approval_dep_head')->nullable();
 
             $table->timestamps();
         });

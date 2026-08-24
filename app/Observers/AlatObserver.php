@@ -22,45 +22,49 @@ class AlatObserver
     }
 
     /**
-     * Notifikasi saat status alat berubah.
+     * Notifikasi saat kondisi kesehatan alat berubah (Normal / Gangguan /
+     * Rusak). Nilai ini di-set OTOMATIS oleh LogHarianObserver berdasarkan
+     * entri log_harian paling baru — bukan diedit manual dari form Kelola
+     * Alat.
      */
     public function updated(Alat $alat): void
     {
-        if (! $alat->isDirty('status')) {
+        if (! $alat->isDirty('kondisi_terkini')) {
             return;
         }
 
-        $statusLama = $alat->getOriginal('status');
-        $statusBaru = $alat->status;
+        $kondisiLama = $alat->getOriginal('kondisi_terkini');
+        $kondisiBaru = $alat->kondisi_terkini;
 
-        match ($statusBaru) {
-            'error'   => $this->handleError($alat, $statusLama),
-            'offline' => $this->handleOffline($alat, $statusLama),
-            'aktif'   => $this->handleOnline($alat, $statusLama),
-            default   => null,
+        match ($kondisiBaru) {
+            'Rusak'    => $this->handleRusak($alat, $kondisiLama),
+            'Gangguan' => $this->handleGangguan($alat, $kondisiLama),
+            'Normal'   => $this->handleNormal($alat, $kondisiLama),
+            default    => null,
         };
     }
 
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
-    private function handleError(Alat $alat, ?string $statusLama): void
+    private function handleRusak(Alat $alat, ?string $kondisiLama): void
     {
-        Notifikasi::buatUntukStatusError($alat, ['status_sebelumnya' => $statusLama]);
-        event(new \App\Events\StatusAlatBerubah($alat, 'error'));
+        Notifikasi::buatUntukKondisiRusak($alat, ['kondisi_sebelumnya' => $kondisiLama]);
+        event(new \App\Events\StatusAlatBerubah($alat, 'Rusak'));
     }
 
-    private function handleOffline(Alat $alat, ?string $statusLama): void
+    private function handleGangguan(Alat $alat, ?string $kondisiLama): void
     {
-        Notifikasi::buatUntukStatusOffline($alat, ['status_sebelumnya' => $statusLama]);
-        event(new \App\Events\StatusAlatBerubah($alat, 'offline'));
+        Notifikasi::buatUntukKondisiGangguan($alat, ['kondisi_sebelumnya' => $kondisiLama]);
+        event(new \App\Events\StatusAlatBerubah($alat, 'Gangguan'));
     }
 
-    private function handleOnline(Alat $alat, ?string $statusLama): void
+    private function handleNormal(Alat $alat, ?string $kondisiLama): void
     {
-        // Hanya buat notif online jika sebelumnya offline/error
-        if (in_array($statusLama, ['offline', 'error'])) {
-            Notifikasi::buatUntukStatusOnline($alat);
-            event(new \App\Events\StatusAlatBerubah($alat, 'aktif'));
+        // Hanya buat notif "pulih" kalau sebelumnya memang Gangguan/Rusak
+        // (bukan waktu alat baru dibuat & kondisi_terkini default 'Normal').
+        if (in_array($kondisiLama, ['Gangguan', 'Rusak'], true)) {
+            Notifikasi::buatUntukKondisiNormal($alat, ['kondisi_sebelumnya' => $kondisiLama]);
+            event(new \App\Events\StatusAlatBerubah($alat, 'Normal'));
         }
     }
 }

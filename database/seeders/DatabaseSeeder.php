@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             BandaraSeeder::class,           // 2. MASTER DATA
             KategoriAlatSeeder::class,
             LokasiSeeder::class,
+            UnitKerjaSeeder::class,  
             PenggunaSeeder::class,          // 3. PENGGUNA (SETELAH ROLE & PERMISSION)
             AlatSeeder::class,
             ThresholdSeeder::class,

@@ -15,7 +15,7 @@ class StatusAlatBerubah implements ShouldBroadcast
 
     public function __construct(
         public Alat   $alat,
-        public string $statusBaru,
+        public string $kondisiBaru,
     ) {}
 
     public function broadcastOn(): array
@@ -32,21 +32,23 @@ class StatusAlatBerubah implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        $prioritas = match ($this->statusBaru) {
-            'error'   => 'kritis',
-            'offline' => 'tinggi',
-            default   => 'rendah',
+        $prioritas = match ($this->kondisiBaru) {
+            'Rusak'    => 'kritis',
+            'Gangguan' => 'tinggi',
+            default    => 'rendah',
         };
 
         return [
-            'id'          => $this->alat->id,
-            'nama_alat'   => $this->alat->nama_alat,
-            'status_baru' => $this->statusBaru,
-            'lokasi'      => optional($this->alat->lokasi)->nama_lokasi,
-            'bandara'     => optional(optional($this->alat->lokasi)->bandara)->nama_bandara,
-            'tanggal'     => now()->toDateTimeString(),
-            'jenis'       => 'status_' . $this->statusBaru,
-            'prioritas'   => $prioritas,
+            // ⚠️ Sebelumnya $this->alat->id — selalu null karena primary
+            // key Alat itu id_alat, bukan id. Dibenerin di sini.
+            'id'           => $this->alat->id_alat,
+            'nama_alat'    => $this->alat->nama_alat,
+            'kondisi_baru' => $this->kondisiBaru,
+            'lokasi'       => optional($this->alat->lokasi)->nama_lokasi,
+            'bandara'      => optional(optional($this->alat->lokasi)->bandara)->nama_bandara,
+            'tanggal'      => now()->toDateTimeString(),
+            'jenis'        => 'kondisi_' . strtolower($this->kondisiBaru),
+            'prioritas'    => $prioritas,
         ];
     }
 }

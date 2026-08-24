@@ -21,6 +21,7 @@ class Pengguna extends Authenticatable
         'role',
         'id_bandara',
         'id_lokasi',
+        'id_unit',
     ];
 
     protected $hidden = [
@@ -44,6 +45,11 @@ class Pengguna extends Authenticatable
     public function lokasi()
     {
         return $this->belongsTo(Lokasi::class, 'id_lokasi', 'id_lokasi');
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(UnitKerja::class, 'id_unit', 'id_unit');
     }
 
     /**
@@ -185,10 +191,21 @@ class Pengguna extends Authenticatable
 
     /**
      * Cek apakah user adalah Divisi Head
+     * ⚠️ Div Head sekarang hanya "mengetahui" (idle.view), tidak approve.
      */
     public function isDivHead(): bool
     {
         return $this->hasRole('div_head');
+    }
+
+    /**
+     * Cek apakah user adalah Dep Head (per unit kerja, mis. Dep Head SSES,
+     * Dep Head BHS, Dep Head SSIT di CGK) — dialah yang approve tahap 1
+     * pengajuan idle, menggantikan Div Head.
+     */
+    public function isDepHead(): bool
+    {
+        return $this->hasRole('dep_head');
     }
 
     /**
@@ -231,5 +248,32 @@ class Pengguna extends Authenticatable
     public function getNamaLokasiAttribute(): ?string
     {
         return $this->lokasi?->nama_lokasi ?? null;
+    }
+
+    /**
+     * Ambil nama unit kerja (kalau ada)
+     */
+    public function getNamaUnitAttribute(): ?string
+    {
+        return $this->unit?->nama_unit ?? null;
+    }
+
+    /**
+     * Cek apakah user bisa mengakses unit kerja tertentu
+     */
+    public function canAccessUnit($idUnit): bool
+    {
+        // Admin bisa akses semua unit
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        // Kalau user tidak terikat unit tertentu (id_unit null),
+        // dia dianggap boleh akses semua unit di bandaranya.
+        if (!$this->id_unit) {
+            return true;
+        }
+
+        return $this->id_unit == $idUnit;
     }
 }

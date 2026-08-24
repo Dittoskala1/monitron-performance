@@ -8,17 +8,36 @@ use App\Models\Bandara;
 use App\Models\Lokasi;
 use App\Models\KategoriAlat;
 use App\Models\Threshold;
+use App\Models\UnitKerja;
 
 class PengaturanController extends Controller
 {
+    /**
+     * Daftar jenis alat yang bisa dipilih sebagai cakupan sebuah unit kerja.
+     * Diambil dari jenis alat yang sudah dipakai di seluruh sistem
+     * (lihat AlatSeeder & DashboardSeeder).
+     */
+    public const JENIS_ALAT_OPTIONS = [
+        'X-Ray', 'WTMD', 'HHMD', 'ETD', 'CCTV', 'Body Scanner', 'Access Control',
+        'Fire Alarm', 'Radio Communication', 'FIDS', 'Public Address', 'Bird Deterrent',
+        'HVAC', 'Genset', 'Conveyor Belt', 'Network Device', 'Server/UPS',
+    ];
+
     public function index()
     {
         $bandara   = Bandara::withCount('lokasi')->orderBy('nama_bandara')->get();
         $lokasi    = Lokasi::with('bandara')->orderBy('nama_lokasi')->get();
         $kategori  = KategoriAlat::withCount('alat')->orderBy('nama_kategori')->get();
         $threshold = Threshold::first();
+        $unitKerja = UnitKerja::with(['bandara', 'lokasi'])
+            ->withCount('pengguna')
+            ->orderBy('id_bandara')
+            ->orderBy('kode_unit')
+            ->get();
 
-        return view('admin.pengaturan.index', compact('bandara', 'lokasi', 'kategori', 'threshold'));
+        return view('admin.pengaturan.index', compact(
+            'bandara', 'lokasi', 'kategori', 'threshold', 'unitKerja'
+        ))->with('jenisAlatOptions', self::JENIS_ALAT_OPTIONS);
     }
 
     public function updateThreshold(Request $request)
@@ -161,5 +180,88 @@ class PengaturanController extends Controller
 
         $kategori->delete();
         return back()->with('success', 'Kategori berhasil dihapus!');
+    }
+
+    // ==========================================
+    // UNIT KERJA
+    // ==========================================
+    public function storeUnit(Request $request)
+    {
+        $request->validate([
+            'id_bandara'   => 'required|exists:bandara,id_bandara',
+            'id_lokasi'    => 'nullable|exists:lokasi,id_lokasi',
+            'kode_unit'    => 'required|string|max:30',
+            'nama_unit'    => 'required|string|max:150',
+            'keterangan'   => 'nullable|string',
+            'cakupan_alat' => 'nullable|array',
+            'cakupan_alat.*' => 'string|in:' . implode(',', self::JENIS_ALAT_OPTIONS),
+        ]);
+
+        if ($request->filled('id_lokasi')) {
+            $lokasi = Lokasi::find($request->id_lokasi);
+            if ($lokasi && $lokasi->id_bandara != $request->id_bandara) {
+                return back()->withErrors([
+                    'id_lokasi' => 'Lokasi tidak berada di bandara yang dipilih.'
+                ])->withInput();
+            }
+        }
+
+        UnitKerja::create([
+            'id_bandara'   => $request->id_bandara,
+            'id_lokasi'    => $request->id_lokasi,
+            'kode_unit'    => $request->kode_unit,
+            'nama_unit'    => $request->nama_unit,
+            'keterangan'   => $request->keterangan,
+            'cakupan_alat' => $request->cakupan_alat ?? [],
+        ]);
+
+        return back()->with('success', 'Unit kerja berhasil ditambahkan!');
+    }
+
+    public function updateUnit(Request $request, $id)
+    {
+        $unit = UnitKerja::findOrFail($id);
+
+        $request->validate([
+            'id_bandara'   => 'required|exists:bandara,id_bandara',
+            'id_lokasi'    => 'nullable|exists:lokasi,id_lokasi',
+            'kode_unit'    => 'required|string|max:30',
+            'nama_unit'    => 'required|string|max:150',
+            'keterangan'   => 'nullable|string',
+            'cakupan_alat' => 'nullable|array',
+            'cakupan_alat.*' => 'string|in:' . implode(',', self::JENIS_ALAT_OPTIONS),
+        ]);
+
+        if ($request->filled('id_lokasi')) {
+            $lokasi = Lokasi::find($request->id_lokasi);
+            if ($lokasi && $lokasi->id_bandara != $request->id_bandara) {
+                return back()->withErrors([
+                    'id_lokasi' => 'Lokasi tidak berada di bandara yang dipilih.'
+                ])->withInput();
+            }
+        }
+
+        $unit->update([
+            'id_bandara'   => $request->id_bandara,
+            'id_lokasi'    => $request->id_lokasi,
+            'kode_unit'    => $request->kode_unit,
+            'nama_unit'    => $request->nama_unit,
+            'keterangan'   => $request->keterangan,
+            'cakupan_alat' => $request->cakupan_alat ?? [],
+        ]);
+
+        return back()->with('success', 'Unit kerja berhasil diupdate!');
+    }
+
+    public function deleteUnit($id)
+    {
+        $unit = UnitKerja::findOrFail($id);
+
+        if ($unit->pengguna()->exists()) {
+            return back()->with('error', 'Unit tidak bisa dihapus karena masih ada pengguna yang terhubung ke unit ini!');
+        }
+
+        $unit->delete();
+        return back()->with('success', 'Unit kerja berhasil dihapus!');
     }
 }

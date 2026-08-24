@@ -19,19 +19,44 @@ class PengajuanIdleController extends Controller
         $role = session('pengguna.role');
         $idBandara = session('pengguna.id_bandara');
         $idLokasi = session('pengguna.id_lokasi');
+        // ⚠️ BARU: afet_bandara yang terikat ke 1 unit kerja (mis. SSES-T1 di
+        // CGK) cuma boleh lihat pengajuan idle untuk alat cakupan unitnya.
+        $unit = $this->unitKerjaSaya();
 
         $pengajuan = PengajuanIdle::with([
                 'alat.lokasi.bandara', 'alat.bandara',
-                'lokasiAsal', 'lokasiUnused', 'pemohon', 'approver', 'approverDivHead'
+                'lokasiAsal', 'lokasiUnused', 'pemohon', 'approver', 'approverDepHead'
             ])
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($role === 'afet_bandara', function ($q) use ($idBandara, $unit) {
                 $q->whereHas('alat', fn($q2) => $q2->where('id_bandara', $idBandara));
+                if ($unit) {
+                    $this->scopeByUnitKerja($q, 'alat');
+                }
             })
+            // ⚠️ Div Head sekarang cuma "mengetahui" (view only, tidak approve),
+            // tapi tetap dibatasi ke bandara + lokasinya sendiri seperti dulu.
             ->when($role === 'div_head', function ($q) use ($idBandara, $idLokasi) {
                 $q->whereHas('alat', fn($q2) => $q2->where('id_bandara', $idBandara));
                 if ($idLokasi !== null) {
                     $q->where('id_lokasi_asal', $idLokasi);
                 }
+            })
+            // ⚠️ BARU: Dep Head — approver tahap 1 pengajuan idle, dibatasi ke
+            // bandara + lokasinya (kalau ada) DAN ke unit kerjanya (kalau
+            // akunnya terikat ke 1 unit spesifik, mis. Dep Head SSES-T1 CGK).
+            ->when($role === 'dep_head', function ($q) use ($idBandara, $idLokasi, $unit) {
+                $q->whereHas('alat', fn($q2) => $q2->where('id_bandara', $idBandara));
+                if ($idLokasi !== null) {
+                    $q->where('id_lokasi_asal', $idLokasi);
+                }
+                if ($unit) {
+                    $this->scopeByUnitKerja($q, 'alat');
+                }
+            })
+            // ⚠️ BARU: gm_kc sebelumnya kelewatan — dia juga role terkunci ke
+            // bandaranya sendiri (samain sama DashboardController).
+            ->when($role === 'gm_kc', function ($q) use ($idBandara) {
+                $q->whereHas('alat', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->orderByDesc('tanggal_pengajuan')
@@ -50,9 +75,11 @@ class PengajuanIdleController extends Controller
     public function create(Request $request)
     {
         $role = session('pengguna.role');
+        $isLocked = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
+        $unit = $this->unitKerjaSaya();
 
-        $idAlatSedangDiajukan = PengajuanIdle::whereIn('status', ['Waiting Approval Div Head', 'Waiting Approval Admin AFET'])
+        $idAlatSedangDiajukan = PengajuanIdle::whereIn('status', ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET'])
             ->pluck('id_alat')->toArray();
 
         $selectedAlat = null;
@@ -61,9 +88,16 @@ class PengajuanIdleController extends Controller
             $selectedAlat = Alat::with('lokasi.bandara')->find($request->id_alat);
 
             if ($selectedAlat) {
-                // Validasi akses: afet_bandara cuma boleh ajukan alat di bandaranya sendiri
-                if ($role === 'afet_bandara' && ($selectedAlat->id_bandara ?? null) != $idBandara) {
+                // Validasi akses: role terkunci (afet_bandara, div_head, gm_kc) cuma
+                // boleh ajukan alat di bandaranya sendiri
+                if ($isLocked && ($selectedAlat->id_bandara ?? null) != $idBandara) {
                     abort(403, 'Anda hanya bisa mengajukan idle untuk alat di bandara Anda sendiri.');
+                }
+
+                // ⚠️ BARU: kalau akun ini terikat ke 1 unit kerja, alat yang
+                // diajukan idle juga harus masuk cakupan unit itu.
+                if (! $this->alatMasukCakupanUnit($selectedAlat)) {
+                    abort(403, 'Anda hanya bisa mengajukan idle untuk alat yang menjadi cakupan unit kerja Anda.');
                 }
 
                 // Kalau alat ini sudah di Unused atau sudah ada pengajuan pending,
@@ -82,9 +116,10 @@ class PengajuanIdleController extends Controller
 
         // Dropdown tetap disiapkan untuk fallback (kalau $selectedAlat null / id_alat tidak dikirim)
         $alat = Alat::with('lokasi.bandara')
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q))
             ->orderBy('nama_alat')
             ->get();
 
@@ -110,12 +145,19 @@ class PengajuanIdleController extends Controller
 
         $alat = Alat::with('lokasi')->findOrFail($request->id_alat);
 
-        if ($role === 'afet_bandara' && ($alat->id_bandara ?? null) != $idBandara) {
+        if ($this->isBandaraLocked($role) && ($alat->id_bandara ?? null) != $idBandara) {
             abort(403, 'Anda hanya bisa mengajukan idle untuk alat di bandara Anda sendiri.');
         }
 
+        // ⚠️ BARU: validasi cakupan unit kerja juga di sisi server pas submit
+        // (bukan cuma di dropdown), supaya tidak bisa dibobol lewat POST
+        // langsung dengan id_alat milik unit lain.
+        if (! $this->alatMasukCakupanUnit($alat)) {
+            abort(403, 'Anda hanya bisa mengajukan idle untuk alat yang menjadi cakupan unit kerja Anda.');
+        }
+
         $sudahDiajukan = PengajuanIdle::where('id_alat', $alat->id_alat)
-            ->whereIn('status', ['Waiting Approval Div Head', 'Waiting Approval Admin AFET'])
+            ->whereIn('status', ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET'])
             ->exists();
 
         if ($sudahDiajukan) {
@@ -143,7 +185,7 @@ class PengajuanIdleController extends Controller
                 'id_lokasi_unused'    => $lokasiUnused->id_lokasi,
                 'id_pengguna'         => session('pengguna.id'),
                 'alasan_idle'         => $request->alasan_idle,
-                'status'              => 'Waiting Approval Div Head',
+                'status'              => 'Waiting Approval Dep Head',
                 'tanggal_pengajuan'   => now(),
             ]);
 
@@ -160,22 +202,35 @@ class PengajuanIdleController extends Controller
             }
 
             $alatDenganRelasi = Alat::with('lokasi.bandara')->find($alat->id_alat);
-            Notifikasi::buatPengajuanIdle($alatDenganRelasi, session('pengguna.nama'), $idLokasiAsal);
+            Notifikasi::buatPengajuanIdle($alatDenganRelasi, session('pengguna.nama'), $idLokasiAsal, session('pengguna.id_unit'));
         });
 
         return redirect()->route('admin.peralatan-idle.index')
-            ->with('success', 'Pengajuan idle berhasil dibuat dan menunggu approval Div Head.');
+            ->with('success', 'Pengajuan idle berhasil dibuat dan menunggu approval Dep Head.');
     }
 
     public function show($id)
     {
         $pengajuan = PengajuanIdle::with([
                 'alat.lokasi.bandara', 'alat.bandara',
-                'lokasiAsal', 'lokasiUnused', 'pemohon', 'approver', 'approverDivHead', 'dokumen'
+                'lokasiAsal', 'lokasiUnused', 'pemohon', 'approver', 'approverDepHead', 'dokumen'
             ])
             ->findOrFail($id);
 
-        return view('admin.peralatan-idle.show', compact('pengajuan'));
+        // ⚠️ BARU: dihitung di controller (bukan di blade) karena butuh
+        // alatMasukCakupanUnit() untuk cek apakah Dep Head yang login ini
+        // memang membawahi unit kerja alat yang diajukan idle-nya.
+        $role = session('pengguna.role');
+        $idBandara = session('pengguna.id_bandara');
+        $idLokasi = session('pengguna.id_lokasi');
+
+        $isDepHeadBerwenang = $role === 'dep_head'
+            && $pengajuan->status === 'Waiting Approval Dep Head'
+            && $idBandara == ($pengajuan->alat->id_bandara ?? null)
+            && ($idLokasi === null || $idLokasi == $pengajuan->id_lokasi_asal)
+            && $this->alatMasukCakupanUnit($pengajuan->alat);
+
+        return view('admin.peralatan-idle.show', compact('pengajuan', 'isDepHeadBerwenang'));
     }
 
     public function approve($id)
@@ -185,9 +240,15 @@ class PengajuanIdleController extends Controller
         $idLokasi = session('pengguna.id_lokasi');
         $role = session('pengguna.role');
 
-        if ($pengajuan->status === 'Waiting Approval Div Head') {
-            if ($role !== 'div_head' || $idBandara != $pengajuan->alat->id_bandara ||
-                ($idLokasi !== null && $idLokasi != $pengajuan->id_lokasi_asal)) {
+        if ($pengajuan->status === 'Waiting Approval Dep Head') {
+            // ⚠️ DIUBAH: yang berwenang sekarang Dep Head (bukan Div Head lagi).
+            // Dibatasi ke bandara + lokasinya (kalau ada), DAN kalau akun Dep
+            // Head ini terikat ke 1 unit kerja spesifik, alat pengajuan ini
+            // juga harus masuk cakupan unit itu (mis. Dep Head SSES tidak
+            // boleh approve pengajuan idle alat milik unit BHS).
+            if ($role !== 'dep_head' || $idBandara != $pengajuan->alat->id_bandara ||
+                ($idLokasi !== null && $idLokasi != $pengajuan->id_lokasi_asal) ||
+                ! $this->alatMasukCakupanUnit($pengajuan->alat)) {
                 abort(403, 'Anda tidak berwenang memproses pengajuan ini.');
             }
 
@@ -197,19 +258,19 @@ class PengajuanIdleController extends Controller
 
             $pengajuan->update([
                 'status'                        => 'Waiting Approval Admin AFET',
-                'id_pengguna_approval_div_head' => session('pengguna.id'),
-                'tanggal_approval_div_head'     => now(),
+                'id_pengguna_approval_dep_head' => session('pengguna.id'),
+                'tanggal_approval_dep_head'     => now(),
             ]);
 
             Notifikasi::buatMenungguApprovalAfetRegional($pengajuan->alat, session('pengguna.nama'));
 
             return redirect()->route('admin.peralatan-idle.index')
-                ->with('success', 'Disetujui Div Head. Menunggu approval final Admin AFET Regional.');
+                ->with('success', 'Disetujui Dep Head. Menunggu approval final Admin AFET Regional.');
         }
 
         if ($pengajuan->status === 'Waiting Approval Admin AFET') {
-            if ($role !== 'afet_regional') {
-                abort(403, 'Hanya Admin AFET Regional yang bisa memberi approval final.');
+            if (! in_array($role, ['afet_regional', 'ho', 'ceo'], true)) {
+                abort(403, 'Hanya Admin AFET Regional, HO, atau CEO yang bisa memberi approval final.');
             }
 
             if (($pengajuan->alat->id_lokasi ?? null) != $pengajuan->id_lokasi_asal) {
@@ -245,18 +306,20 @@ class PengajuanIdleController extends Controller
         $idLokasi = session('pengguna.id_lokasi');
         $role = session('pengguna.role');
 
-        if (!in_array($pengajuan->status, ['Waiting Approval Div Head', 'Waiting Approval Admin AFET'])) {
+        if (!in_array($pengajuan->status, ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET'])) {
             return back()->withErrors(['status' => 'Pengajuan ini sudah diproses sebelumnya.']);
         }
 
-        if ($pengajuan->status === 'Waiting Approval Div Head') {
-            if ($role !== 'div_head' || $idBandara != $pengajuan->alat->id_bandara ||
-                ($idLokasi !== null && $idLokasi != $pengajuan->id_lokasi_asal)) {
+        if ($pengajuan->status === 'Waiting Approval Dep Head') {
+            // ⚠️ DIUBAH: Dep Head yang berwenang reject tahap 1 (bukan Div Head lagi).
+            if ($role !== 'dep_head' || $idBandara != $pengajuan->alat->id_bandara ||
+                ($idLokasi !== null && $idLokasi != $pengajuan->id_lokasi_asal) ||
+                ! $this->alatMasukCakupanUnit($pengajuan->alat)) {
                 abort(403, 'Anda tidak berwenang memproses pengajuan ini.');
             }
         } else {
-            if ($role !== 'afet_regional') {
-                abort(403, 'Hanya Admin AFET Regional yang bisa memberi keputusan final.');
+            if (! in_array($role, ['afet_regional', 'ho', 'ceo'], true)) {
+                abort(403, 'Hanya Admin AFET Regional, HO, atau CEO yang bisa memberi keputusan final.');
             }
         }
 
@@ -304,13 +367,13 @@ class PengajuanIdleController extends Controller
                 'kondisi_alat'                  => $request->kondisi_alat,
                 'penjelasan_kondisi'            => $request->penjelasan_kondisi,
                 'alasan_idle'                   => $request->alasan_idle,
-                'status'                        => 'Waiting Approval Div Head',
+                'status'                        => 'Waiting Approval Dep Head',
                 'alasan_reject'                 => null,
                 'tanggal_pengajuan'             => now(),
                 'tanggal_keputusan'             => null,
                 'id_pengguna_approval'          => null,
-                'id_pengguna_approval_div_head' => null,
-                'tanggal_approval_div_head'     => null,
+                'id_pengguna_approval_dep_head' => null,
+                'tanggal_approval_dep_head'     => null,
             ]);
 
             if ($request->hasFile('dokumen')) {
@@ -326,11 +389,11 @@ class PengajuanIdleController extends Controller
             }
 
             $alatDenganRelasi = Alat::with('lokasi.bandara')->find($pengajuan->alat->id_alat);
-            Notifikasi::buatPengajuanIdle($alatDenganRelasi, session('pengguna.nama'), $pengajuan->id_lokasi_asal);
+            Notifikasi::buatPengajuanIdle($alatDenganRelasi, session('pengguna.nama'), $pengajuan->id_lokasi_asal, session('pengguna.id_unit'));
         });
 
         return redirect()->route('admin.peralatan-idle.index')
-            ->with('success', 'Pengajuan idle diajukan ulang dan menunggu approval Div Head.');
+            ->with('success', 'Pengajuan idle diajukan ulang dan menunggu approval Dep Head.');
     }
 
     public function hapusDokumen($idPengajuan, $idDokumen)

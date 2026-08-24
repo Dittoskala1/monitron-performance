@@ -9,238 +9,73 @@ class AlatSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('alat')->insert([
-            // ===== CGK - Terminal 1 =====
-            [
-                'id_lokasi' => 1,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.01.CGK.T1.S1.BG.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Bagasi', // ⚠️ BARU
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'X-RAY',
-                'nama_alat' => 'X-Ray Bagasi - Terminal 1',
-                'merek' => 'Smiths Detection',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 1,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.01.CGK.T1.S1.BG.002',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Cabin',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'X-RAY',
-                'nama_alat' => 'X-Ray Cabin - Terminal 1',
-                'merek' => 'Smiths Detection',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 1,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.04.CGK.T1.S1.XX.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Gerbang Utama',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'WTMD',
-                'nama_alat' => 'WTMD - Terminal 1',
-                'merek' => 'Garrett',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 1,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.10.CGK.T1.S1.XX.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Meja Petugas',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'HHMD',
-                'nama_alat' => 'HHMD - Terminal 1',
-                'merek' => 'Garrett',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 1,
-                'id_bandara' => 1,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.CGK.T1.S1.XX.001',
-                'detail_lokasi' => 'Area Check-in - Sudut Kamera 1',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Terminal 1',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $data = [
+            // ==========================================================
+            // CGK — disusun per Unit Kerja (14 unit, sesuai laporan bulanan)
+            // ⚠️ Kode Alat, Merek, Detail Lokasi = data CONTOH/dummy.
+            // Jenis Alat untuk unit selain SSES adalah TEBAKAN masuk akal,
+            // silakan sesuaikan lewat halaman Data Alat kalau perlu.
+            // ==========================================================
 
-            // ===== CGK - Terminal 2 =====
-            [
-                'id_lokasi' => 2,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.01.CGK.T2.S1.BG.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Bagasi',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'X-RAY',
-                'nama_alat' => 'X-Ray Bagasi - Terminal 2',
-                'merek' => 'Smiths Detection',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 2,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.01.CGK.T2.S1.BG.002',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Cabin',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'X-RAY',
-                'nama_alat' => 'X-Ray Cabin - Terminal 2',
-                'merek' => 'Smiths Detection',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 2,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.04.CGK.T2.S1.XX.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Gerbang Utama',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'WTMD',
-                'nama_alat' => 'WTMD - Terminal 2',
-                'merek' => 'Garrett',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 2,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.10.CGK.T2.S1.XX.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Meja Petugas',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'HHMD',
-                'nama_alat' => 'HHMD - Terminal 2',
-                'merek' => 'Garrett',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 2,
-                'id_bandara' => 1,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.CGK.T2.S1.XX.001',
-                'detail_lokasi' => 'Area Check-in - Sudut Kamera 1',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Terminal 2',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+            // ===== BHS (Baggage Handling System) — Non Terminal =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.BHS.001', 'detail_lokasi' => 'Baggage Hall - Conveyor Line 1', 'unit_kerja' => 'BHS', 'jenis_alat' => 'Conveyor Belt', 'nama_alat' => 'Conveyor Belt Line 1', 'merek' => 'Vanderlande', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.BHS.002', 'detail_lokasi' => 'Baggage Hall - Conveyor Line 2', 'unit_kerja' => 'BHS', 'jenis_alat' => 'Conveyor Belt', 'nama_alat' => 'Conveyor Belt Line 2', 'merek' => 'Vanderlande', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
 
-            // ===== CGK - Terminal 3 =====
-            [
-                'id_lokasi' => 3,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.01.CGK.T3.S1.BG.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Bagasi',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'X-RAY',
-                'nama_alat' => 'X-Ray Bagasi - Terminal 3',
-                'merek' => 'Smiths Detection',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 3,
-                'id_bandara' => 1,
-                'id_kategori' => 1,
-                'kode_alat' => '14.01.01.04.CGK.T3.S1.XX.001',
-                'detail_lokasi' => 'Checkpoint Screening 1 - Gerbang Utama',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'WTMD',
-                'nama_alat' => 'WTMD - Terminal 3',
-                'merek' => 'Garrett',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 3,
-                'id_bandara' => 1,
-                'id_kategori' => 3,
-                'kode_alat' => '14.01.01.03.CGK.T3.S1.XX.001',
-                'detail_lokasi' => 'Ruang Mekanikal - Rooftop',
-                'unit_kerja' => 'MECHANICAL FACILITY',
-                'jenis_alat' => 'HVAC',
-                'nama_alat' => 'HVAC - Terminal 3',
-                'merek' => 'Daikin',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 3,
-                'id_bandara' => 1,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.CGK.T3.S1.XX.001',
-                'detail_lokasi' => 'Area Check-in - Sudut Kamera 1',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Terminal 3',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+            // ===== CCIT (Communication & IT) — Non Terminal =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.CCIT.001', 'detail_lokasi' => 'Area Umum - CCTV Perimeter', 'unit_kerja' => 'CCIT', 'jenis_alat' => 'CCTV', 'nama_alat' => 'CCTV Perimeter', 'merek' => 'Hikvision', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.CCIT.002', 'detail_lokasi' => 'Ruang Kontrol - Radio Base Station', 'unit_kerja' => 'CCIT', 'jenis_alat' => 'Radio Communication', 'nama_alat' => 'Radio Base Station', 'merek' => 'Motorola', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
 
-            // ===== CGK - Non Terminal =====
-            [
-                'id_lokasi' => 4,
-                'id_bandara' => 1,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.CGK.NT.S1.XX.001',
-                'detail_lokasi' => 'Area Parkir - Gerbang Masuk',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Non Terminal',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 4,
-                'id_bandara' => 1,
-                'id_kategori' => 3,
-                'kode_alat' => '14.01.01.03.CGK.NT.S1.XX.001',
-                'detail_lokasi' => 'Gedung Power House',
-                'unit_kerja' => 'MECHANICAL FACILITY',
-                'jenis_alat' => 'GENSET',
-                'nama_alat' => 'Genset - Non Terminal',
-                'merek' => 'Caterpillar',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+            // ===== DANET (Data Network) — Non Terminal =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.DANET.001', 'detail_lokasi' => 'Ruang Server - Core Switch', 'unit_kerja' => 'DANET', 'jenis_alat' => 'Network Device', 'nama_alat' => 'Core Switch Utama', 'merek' => 'Cisco', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.DANET.002', 'detail_lokasi' => 'Ruang Server - Access Switch', 'unit_kerja' => 'DANET', 'jenis_alat' => 'Network Device', 'nama_alat' => 'Access Switch Terminal', 'merek' => 'Cisco', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== GES-NT (General Electronic Services - Non Terminal) =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.GESNT.001', 'detail_lokasi' => 'Gedung Power House', 'unit_kerja' => 'GES-NT', 'jenis_alat' => 'Genset', 'nama_alat' => 'Genset Cadangan', 'merek' => 'Caterpillar', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.GESNT.002', 'detail_lokasi' => 'Area Parkir - Panel Fire Alarm', 'unit_kerja' => 'GES-NT', 'jenis_alat' => 'Fire Alarm', 'nama_alat' => 'Fire Alarm Panel Parkir', 'merek' => 'Bosch', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== GES-T1 (General Electronic Services - Terminal 1) =====
+            ['id_lokasi' => 1, 'id_bandara' => 1, 'kode_alat' => 'CGK.GEST1.001', 'detail_lokasi' => 'Ruang Tunggu - Layar FIDS', 'unit_kerja' => 'GES-T1', 'jenis_alat' => 'FIDS', 'nama_alat' => 'FIDS Ruang Tunggu', 'merek' => 'Generic', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 1, 'id_bandara' => 1, 'kode_alat' => 'CGK.GEST1.002', 'detail_lokasi' => 'Koridor - Public Address', 'unit_kerja' => 'GES-T1', 'jenis_alat' => 'Public Address', 'nama_alat' => 'PA System Koridor', 'merek' => 'Bosch', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== GES-T2 (General Electronic Services - Terminal 2) =====
+            ['id_lokasi' => 2, 'id_bandara' => 1, 'kode_alat' => 'CGK.GEST2.001', 'detail_lokasi' => 'Ruang Tunggu - Layar FIDS', 'unit_kerja' => 'GES-T2', 'jenis_alat' => 'FIDS', 'nama_alat' => 'FIDS Ruang Tunggu', 'merek' => 'Generic', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 2, 'id_bandara' => 1, 'kode_alat' => 'CGK.GEST2.002', 'detail_lokasi' => 'Ruang Mekanikal - Rooftop', 'unit_kerja' => 'GES-T2', 'jenis_alat' => 'HVAC', 'nama_alat' => 'HVAC Rooftop', 'merek' => 'Daikin', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== GES-T3 (General Electronic Services - Terminal 3) =====
+            ['id_lokasi' => 3, 'id_bandara' => 1, 'kode_alat' => 'CGK.GEST3.001', 'detail_lokasi' => 'Koridor - Panel Fire Alarm', 'unit_kerja' => 'GES-T3', 'jenis_alat' => 'Fire Alarm', 'nama_alat' => 'Fire Alarm Panel Koridor', 'merek' => 'Bosch', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 3, 'id_bandara' => 1, 'kode_alat' => 'CGK.GEST3.002', 'detail_lokasi' => 'Ruang Tunggu - Public Address', 'unit_kerja' => 'GES-T3', 'jenis_alat' => 'Public Address', 'nama_alat' => 'PA System Ruang Tunggu', 'merek' => 'Bosch', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== IT-NON-PUBLIK — Non Terminal =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.ITNP.001', 'detail_lokasi' => 'Ruang Server - UPS Utama', 'unit_kerja' => 'IT-NON-PUBLIK', 'jenis_alat' => 'Server/UPS', 'nama_alat' => 'UPS Server Utama', 'merek' => 'APC', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.ITNP.002', 'detail_lokasi' => 'Ruang Server - Router Internal', 'unit_kerja' => 'IT-NON-PUBLIK', 'jenis_alat' => 'Network Device', 'nama_alat' => 'Router Internal', 'merek' => 'Cisco', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== PSIT — Non Terminal =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.PSIT.001', 'detail_lokasi' => 'Gedung Power House - Genset Cadangan', 'unit_kerja' => 'PSIT', 'jenis_alat' => 'Genset', 'nama_alat' => 'Genset PSIT', 'merek' => 'Caterpillar', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.PSIT.002', 'detail_lokasi' => 'Ruang Server - UPS PSIT', 'unit_kerja' => 'PSIT', 'jenis_alat' => 'Server/UPS', 'nama_alat' => 'UPS PSIT', 'merek' => 'APC', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== SSES-NT (Safety & Security Electronic Services - Non Terminal) =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.SSESNT.001', 'detail_lokasi' => 'Pintu Akses Karyawan', 'unit_kerja' => 'SSES-NT', 'jenis_alat' => 'Access Control', 'nama_alat' => 'Access Control Pintu Karyawan', 'merek' => 'HID', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.SSESNT.002', 'detail_lokasi' => 'Pos Security - Meja Petugas', 'unit_kerja' => 'SSES-NT', 'jenis_alat' => 'HHMD', 'nama_alat' => 'HHMD Pos Security', 'merek' => 'Garrett', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== SSES-T1 (Safety & Security Electronic Services - Terminal 1) =====
+            ['id_lokasi' => 1, 'id_bandara' => 1, 'kode_alat' => '14.01.01.01.CGK.T1.S1.BG.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Bagasi', 'unit_kerja' => 'SSES-T1', 'jenis_alat' => 'X-Ray', 'nama_alat' => 'X-Ray Bagasi - Terminal 1', 'merek' => 'Smiths Detection', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 1, 'id_bandara' => 1, 'kode_alat' => '14.01.01.01.CGK.T1.S1.BG.002', 'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Cabin', 'unit_kerja' => 'SSES-T1', 'jenis_alat' => 'X-Ray', 'nama_alat' => 'X-Ray Cabin - Terminal 1', 'merek' => 'Smiths Detection', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 1, 'id_bandara' => 1, 'kode_alat' => '14.01.01.04.CGK.T1.S1.XX.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Gerbang Utama', 'unit_kerja' => 'SSES-T1', 'jenis_alat' => 'WTMD', 'nama_alat' => 'WTMD - Terminal 1', 'merek' => 'Garrett', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 1, 'id_bandara' => 1, 'kode_alat' => '14.01.01.10.CGK.T1.S1.XX.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Meja Petugas', 'unit_kerja' => 'SSES-T1', 'jenis_alat' => 'HHMD', 'nama_alat' => 'HHMD - Terminal 1', 'merek' => 'Garrett', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== SSES-T2 (Safety & Security Electronic Services - Terminal 2) =====
+            ['id_lokasi' => 2, 'id_bandara' => 1, 'kode_alat' => '14.01.01.01.CGK.T2.S1.BG.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Bagasi', 'unit_kerja' => 'SSES-T2', 'jenis_alat' => 'X-Ray', 'nama_alat' => 'X-Ray Bagasi - Terminal 2', 'merek' => 'Smiths Detection', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 2, 'id_bandara' => 1, 'kode_alat' => '14.01.01.01.CGK.T2.S1.BG.002', 'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Cabin', 'unit_kerja' => 'SSES-T2', 'jenis_alat' => 'X-Ray', 'nama_alat' => 'X-Ray Cabin - Terminal 2', 'merek' => 'Smiths Detection', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 2, 'id_bandara' => 1, 'kode_alat' => '14.01.01.04.CGK.T2.S1.XX.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Gerbang Utama', 'unit_kerja' => 'SSES-T2', 'jenis_alat' => 'WTMD', 'nama_alat' => 'WTMD - Terminal 2', 'merek' => 'Garrett', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== SSES-T3 (Safety & Security Electronic Services - Terminal 3) =====
+            ['id_lokasi' => 3, 'id_bandara' => 1, 'kode_alat' => '14.01.01.01.CGK.T3.S1.BG.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Jalur Bagasi', 'unit_kerja' => 'SSES-T3', 'jenis_alat' => 'X-Ray', 'nama_alat' => 'X-Ray Bagasi - Terminal 3', 'merek' => 'Smiths Detection', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 3, 'id_bandara' => 1, 'kode_alat' => '14.01.01.04.CGK.T3.S1.XX.001', 'detail_lokasi' => 'Checkpoint Screening 1 - Gerbang Utama', 'unit_kerja' => 'SSES-T3', 'jenis_alat' => 'WTMD', 'nama_alat' => 'WTMD - Terminal 3', 'merek' => 'Garrett', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 3, 'id_bandara' => 1, 'kode_alat' => 'CGK.SSEST3.003', 'detail_lokasi' => 'Checkpoint Screening 1 - Body Scanner', 'unit_kerja' => 'SSES-T3', 'jenis_alat' => 'Body Scanner', 'nama_alat' => 'Body Scanner - Terminal 3', 'merek' => 'Smiths Detection', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+
+            // ===== SSIT — Non Terminal =====
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.SSIT.001', 'detail_lokasi' => 'Ruang Server - UPS Sistem Keamanan', 'unit_kerja' => 'SSIT', 'jenis_alat' => 'Server/UPS', 'nama_alat' => 'UPS Sistem Keamanan', 'merek' => 'APC', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
+            ['id_lokasi' => 4, 'id_bandara' => 1, 'kode_alat' => 'CGK.SSIT.002', 'detail_lokasi' => 'Pintu Akses Ruang Server', 'unit_kerja' => 'SSIT', 'jenis_alat' => 'Access Control', 'nama_alat' => 'Access Control Ruang Server', 'merek' => 'HID', 'status' => 'Aktif', 'created_at' => now(), 'updated_at' => now()],
 
             // ===== BDO - Terminal =====
             [
@@ -314,39 +149,9 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
 
-            // ===== BDO - Non Terminal =====
-            [
-                'id_lokasi' => 6,
-                'id_bandara' => 2,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.BDO.NT.S1.XX.001',
-                'detail_lokasi' => 'Area Parkir - Gerbang Masuk',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Non Terminal',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 6,
-                'id_bandara' => 2,
-                'id_kategori' => 3,
-                'kode_alat' => '14.01.01.03.BDO.NT.S1.XX.001',
-                'detail_lokasi' => 'Gedung Power House',
-                'unit_kerja' => 'MECHANICAL FACILITY',
-                'jenis_alat' => 'GENSET',
-                'nama_alat' => 'Genset - Non Terminal',
-                'merek' => 'Caterpillar',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-
             // ===== HLP - Terminal =====
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.HLP.TL.S1.BG.002',
@@ -360,7 +165,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.HLP.US.S1.CN.001',
@@ -374,7 +179,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.HLP.TL.V0.BG.001',
@@ -388,7 +193,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.HLP.IDLE.S2.CN.001',
@@ -402,7 +207,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.HLP.TL.S2.CN.002',
@@ -416,7 +221,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.HLP.TL.S3.CN.001',
@@ -430,7 +235,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.HLP.TL.S1.XX.001',
@@ -444,7 +249,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.HLP.TL.S1.XX.002',
@@ -458,7 +263,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.HLP.TL.X0.XX.002',
@@ -472,7 +277,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.HLP.TL.S2.XX.001',
@@ -486,7 +291,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.HLP.TL.S2.XX.002',
@@ -500,7 +305,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.HLP.TL.V0.XX.001',
@@ -514,7 +319,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.10.HLP.TL.S1.XX.001',
@@ -528,7 +333,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.10.HLP.TL.S2.XX.001',
@@ -542,7 +347,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.10.HLP.TL.X0.XX.001',
@@ -556,7 +361,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.10.HLP.TL.X0.XX.002',
@@ -570,7 +375,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 7,
+                'id_lokasi' => 6,
                 'id_bandara' => 3,
                 'id_kategori' => 4,
                 'kode_alat' => '14.01.01.02.HLP.TL.S1.XX.001',
@@ -584,39 +389,9 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
 
-            // ===== HLP - Non Terminal =====
-            [
-                'id_lokasi' => 8,
-                'id_bandara' => 3,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.HLP.NT.S1.XX.001',
-                'detail_lokasi' => 'Area Parkir - Gerbang Masuk',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Non Terminal',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 8,
-                'id_bandara' => 3,
-                'id_kategori' => 3,
-                'kode_alat' => '14.01.01.03.HLP.NT.S1.XX.001',
-                'detail_lokasi' => 'Gedung Power House',
-                'unit_kerja' => 'MECHANICAL FACILITY',
-                'jenis_alat' => 'GENSET',
-                'nama_alat' => 'Genset - Non Terminal',
-                'merek' => 'Caterpillar',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-
             // ===== KJT - Terminal =====
             [
-                'id_lokasi' => 9,
+                'id_lokasi' => 7,
                 'id_bandara' => 4,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.KJT.TL.S1.BG.001',
@@ -630,7 +405,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 9,
+                'id_lokasi' => 7,
                 'id_bandara' => 4,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.01.KJT.TL.S1.CN.001',
@@ -644,7 +419,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 9,
+                'id_lokasi' => 7,
                 'id_bandara' => 4,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.04.KJT.TL.S1.XX.001',
@@ -658,7 +433,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 9,
+                'id_lokasi' => 7,
                 'id_bandara' => 4,
                 'id_kategori' => 1,
                 'kode_alat' => '14.01.01.10.KJT.TL.S1.XX.001',
@@ -672,7 +447,7 @@ class AlatSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_lokasi' => 9,
+                'id_lokasi' => 7,
                 'id_bandara' => 4,
                 'id_kategori' => 4,
                 'kode_alat' => '14.01.01.02.KJT.TL.S1.XX.001',
@@ -685,36 +460,15 @@ class AlatSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+        ];
 
-            // ===== KJT - Non Terminal =====
-            [
-                'id_lokasi' => 10,
-                'id_bandara' => 4,
-                'id_kategori' => 4,
-                'kode_alat' => '14.01.01.02.KJT.NT.S1.XX.001',
-                'detail_lokasi' => 'Area Parkir - Gerbang Masuk',
-                'unit_kerja' => 'ELECTRONIC FACILITY & IT',
-                'jenis_alat' => 'CCTV',
-                'nama_alat' => 'CCTV - Non Terminal',
-                'merek' => 'Hikvision',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id_lokasi' => 10,
-                'id_bandara' => 4,
-                'id_kategori' => 3,
-                'kode_alat' => '14.01.01.03.KJT.NT.S1.XX.001',
-                'detail_lokasi' => 'Gedung Power House',
-                'unit_kerja' => 'MECHANICAL FACILITY',
-                'jenis_alat' => 'GENSET',
-                'nama_alat' => 'Genset - Non Terminal',
-                'merek' => 'Caterpillar',
-                'status' => 'Aktif',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        // Kategori ditentukan otomatis dari jenis_alat (Faskampen vs DBU),
+        // supaya konsisten walaupun id_kategori lama di atas beda-beda.
+        foreach ($data as &$row) {
+            $row['id_kategori'] = KategoriHelper::resolveKategoriId($row['jenis_alat']);
+        }
+        unset($row);
+
+        DB::table('alat')->insert($data);
     }
 }

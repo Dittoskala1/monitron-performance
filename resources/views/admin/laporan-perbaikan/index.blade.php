@@ -30,7 +30,7 @@
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
 
-            @if($roleSaya === 'afet_regional')
+            @if(!$isLocked)
             <div class="col-md-2">
                 <label class="form-label fw-semibold">Bandara</label>
                 <select name="id_bandara" class="form-select">

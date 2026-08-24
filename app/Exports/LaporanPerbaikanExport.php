@@ -18,14 +18,18 @@ class LaporanPerbaikanExport
     protected $kategoriKerusakan;
     protected $tanggalDari;
     protected $tanggalSampai;
+    protected $unit;
 
-    public function __construct($idBandara = null, $status = null, $kategoriKerusakan = null, $tanggalDari = null, $tanggalSampai = null)
+    public function __construct($idBandara = null, $status = null, $kategoriKerusakan = null, $tanggalDari = null, $tanggalSampai = null, $unit = null)
     {
         $this->idBandara         = $idBandara;
         $this->status            = $status;
         $this->kategoriKerusakan = $kategoriKerusakan;
         $this->tanggalDari       = $tanggalDari;
         $this->tanggalSampai     = $tanggalSampai;
+        // ⚠️ BARU: unit kerja (mis. SSES-T1 di CGK) — kalau diisi, export
+        // dibatasi ke lokasi + jenis alat cakupan unit itu saja.
+        $this->unit               = $unit;
     }
 
     public function export()
@@ -34,6 +38,17 @@ class LaporanPerbaikanExport
             ->when($this->idBandara, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q2) => $q2->where('id_bandara', $this->idBandara)
             ))
+            ->when($this->unit, function ($q) {
+                $q->whereHas('alat', function ($q2) {
+                    if ($this->unit->id_lokasi) {
+                        $q2->where('id_lokasi', $this->unit->id_lokasi);
+                    }
+                    if (!empty($this->unit->cakupan_alat)) {
+                        $cakupanLower = array_map('strtolower', $this->unit->cakupan_alat);
+                        $q2->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(jenis_alat)'), $cakupanLower);
+                    }
+                });
+            })
             ->when($this->status, fn($q) => $q->where('status', $this->status))
             ->when($this->kategoriKerusakan, fn($q) => $q->where('kategori_kerusakan', $this->kategoriKerusakan))
             ->when($this->tanggalDari, fn($q) => $q->whereDate('tanggal_kerusakan', '>=', $this->tanggalDari))
@@ -89,7 +104,7 @@ class LaporanPerbaikanExport
         $sheet->setCellValue('A3', 'BANDARA UDARA');
         $sheet->setCellValue('B3', ': ' . $kodeBandara . ' - ' . $namaBandara);
         $sheet->setCellValue('A4', 'UNIT');
-        $sheet->setCellValue('B4', ': ..........................');
+        $sheet->setCellValue('B4', ': ' . ($this->unit->nama_unit ?? '..........................'));
         $sheet->setCellValue('A5', 'TANGGAL');
         $sheet->setCellValue('B5', ': ' . $rangeTanggal);
 

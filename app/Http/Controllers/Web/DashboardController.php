@@ -27,16 +27,24 @@ class DashboardController extends Controller
         //   tidak bisa dibobol lewat manipulasi URL (?id_bandara=X).
         // ============================================================
         $role = session('pengguna.role');
-        $rolesBandaraOnly = ['afet_bandara', 'div_head', 'gm_kc'];
+        $rolesBandaraOnly = ['afet_bandara', 'div_head', 'dep_head', 'gm_kc'];
         $isLocked = in_array($role, $rolesBandaraOnly);
 
         $idBandaraFilter = $isLocked
             ? session('pengguna.id_bandara')
             : $request->id_bandara;
 
+        // ⚠️ BARU: kalau akun ini terikat ke 1 unit kerja spesifik (mis. SSES
+        // T1 di CGK), seluruh angka & grafik di dashboard dibatasi ke lokasi +
+        // jenis alat cakupan unit itu saja. Bandara dengan 1 admin (HLP, KJT,
+        // BDO) tidak punya unit_kerja, jadi $unit selalu null untuk mereka
+        // dan tidak ada perubahan perilaku sama sekali.
+        $unit = $this->unitKerjaSaya();
+
         $threshold = Threshold::first();
         $totalAlat = Alat::where('status', 'Aktif')
             ->when($idBandaraFilter, fn($q) => $q->where('id_bandara', $idBandaraFilter))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q))
             ->count();
 
         // Dropdown filter bandara: role terkunci cuma lihat bandaranya sendiri
@@ -55,6 +63,7 @@ class DashboardController extends Controller
             ->when($idBandaraFilter, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q) => $q->where('id_bandara', $idBandaraFilter)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->orderByDesc('rata_performa')
             ->get();
 
@@ -72,6 +81,7 @@ class DashboardController extends Controller
             ->when($idBandaraFilter, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q) => $q->where('id_bandara', $idBandaraFilter)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->groupBy('tanggal')
             ->orderBy('tanggal')
             ->get();
@@ -85,6 +95,7 @@ class DashboardController extends Controller
             ->when($idBandaraFilter, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q) => $q->where('id_bandara', $idBandaraFilter)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->orderByDesc('tanggal')
             ->take(5)
             ->get();
@@ -95,13 +106,19 @@ class DashboardController extends Controller
         // ============================================================
         $jenisKeamanan = ['X-Ray', 'WTMD', 'HHMD', 'ETD', 'CCTV', 'Body Scanner'];
 
-        $performaPerJenisKeamanan = collect($jenisKeamanan)->map(function ($jenis) use ($bulan, $tahun, $idBandaraFilter) {
-            $avg = HasilBulanan::whereHas('alat', fn($q) => $q->where('nama_alat', 'LIKE', "%{$jenis}%"))
+        $performaPerJenisKeamanan = collect($jenisKeamanan)->map(function ($jenis) use ($bulan, $tahun, $idBandaraFilter, $unit) {
+            // ⚠️ Cari berdasarkan jenis_alat (kolom kategorisasi), BUKAN
+            // nama_alat. Sebelumnya pakai nama_alat LIKE, jadi alat yang
+            // nama_alat-nya tidak literally mengandung nama jenisnya (mis.
+            // "PA System Koridor" untuk jenis "Public Address") kelewatan
+            // dari rata-rata performa jenis ini.
+            $avg = HasilBulanan::whereHas('alat', fn($q) => $q->whereRaw('LOWER(jenis_alat) = ?', [strtolower($jenis)]))
                 ->where('bulan', $bulan)
                 ->where('tahun', $tahun)
                 ->when($idBandaraFilter, fn($q) => $q->whereHas('alat.lokasi',
                     fn($q) => $q->where('id_bandara', $idBandaraFilter)
                 ))
+                ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
                 ->avg('rata_performa');
             return round($avg ?? 0, 2);
         })->values();
@@ -119,13 +136,15 @@ class DashboardController extends Controller
             'Bird Deterrent',
         ];
 
-        $performaPerJenisOperasional = collect($jenisOperasional)->map(function ($jenis) use ($bulan, $tahun, $idBandaraFilter) {
-            $avg = HasilBulanan::whereHas('alat', fn($q) => $q->where('nama_alat', 'LIKE', "%{$jenis}%"))
+        $performaPerJenisOperasional = collect($jenisOperasional)->map(function ($jenis) use ($bulan, $tahun, $idBandaraFilter, $unit) {
+            // ⚠️ Sama seperti di atas: match ke jenis_alat, bukan nama_alat.
+            $avg = HasilBulanan::whereHas('alat', fn($q) => $q->whereRaw('LOWER(jenis_alat) = ?', [strtolower($jenis)]))
                 ->where('bulan', $bulan)
                 ->where('tahun', $tahun)
                 ->when($idBandaraFilter, fn($q) => $q->whereHas('alat.lokasi',
                     fn($q) => $q->where('id_bandara', $idBandaraFilter)
                 ))
+                ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
                 ->avg('rata_performa');
             return round($avg ?? 0, 2);
         })->values();
@@ -136,17 +155,23 @@ class DashboardController extends Controller
         // (kartu "Performa Per Bandara" jadi tidak relevan untuk
         // perbandingan, tapi tetap ditampilkan sebagai info singkat).
         // ============================================================
-        $performaBandara = Bandara::withCount(['lokasi as jumlah_alat' => function ($q) {
-                $q->whereHas('alat', fn($q) => $q->where('status', 'Aktif'));
+        $performaBandara = Bandara::withCount(['lokasi as jumlah_alat' => function ($q) use ($unit) {
+                $q->whereHas('alat', function ($q2) use ($unit) {
+                    $q2->where('status', 'Aktif');
+                    if ($unit) {
+                        $this->scopeByUnitKerja($q2);
+                    }
+                });
             }])
             ->when($isLocked, fn($q) => $q->where('id_bandara', $idBandaraFilter))
             ->get()
-            ->map(function ($b) use ($bulan, $tahun) {
+            ->map(function ($b) use ($bulan, $tahun, $unit) {
                 $rata = HasilBulanan::whereHas('alat.lokasi',
                         fn($q) => $q->where('id_bandara', $b->id_bandara)
                     )
                     ->where('bulan', $bulan)
                     ->where('tahun', $tahun)
+                    ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
                     ->avg('rata_performa');
 
                 $b->rata_performa = round($rata ?? 0, 2);

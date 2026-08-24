@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('alat', function (Blueprint $table) {
             $table->bigIncrements('id_alat');
             
-            $table->unsignedBigInteger('id_lokasi');
+            $table->unsignedBigInteger('id_lokasi')->nullable();
             $table->foreign('id_lokasi')->references('id_lokasi')->on('lokasi')->onDelete('cascade');
             
             // ===== TAMBAH: id_bandara untuk mencatat kepemilikan =====
@@ -36,7 +36,13 @@ return new class extends Migration
             $table->year('tahun_pembuatan')->nullable();
             $table->string('kondisi_awal')->nullable();
             $table->enum('status', ['Aktif', 'Tidak'])->default('Aktif');
-            
+
+            // ===== TAMBAH: kondisi kesehatan alat, diturunkan otomatis dari =====
+            // ===== entri log_harian terbaru (lihat LogHarianObserver) =====
+            $table->enum('kondisi_terkini', ['Normal', 'Gangguan', 'Rusak'])->default('Normal');
+            $table->timestamp('kondisi_terkini_at')->nullable();
+            // =====================================================================
+
             $table->timestamps();
         });
     }

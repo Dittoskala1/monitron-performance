@@ -16,6 +16,7 @@ class Alat extends Model
         'kode_alat',
         'detail_lokasi',
         'unit_kerja',
+        'jenis_alat',
         'barcode',
         'nama_alat',
         'merek',
@@ -23,7 +24,16 @@ class Alat extends Model
         'buatan',
         'tahun_pembuatan',
         'kondisi_awal',
-        'status'
+        'status',
+        // ⚠️ BARU: kondisi kesehatan alat saat ini (Normal/Gangguan/Rusak),
+        // diisi OTOMATIS oleh LogHarianObserver — jangan diisi manual dari
+        // form Kelola Alat.
+        'kondisi_terkini',
+        'kondisi_terkini_at',
+    ];
+
+    protected $casts = [
+        'kondisi_terkini_at' => 'datetime',
     ];
 
     // ===== RELASI LOKASI (HANYA 1 KALI) =====
@@ -60,5 +70,14 @@ class Alat extends Model
     public function notifikasi()
     {
         return $this->hasMany(Notifikasi::class, 'id_alat', 'id_alat');
+    }
+
+    // ===== RELASI PENGAJUAN IDLE =====
+    // ⚠️ BARU: dipakai untuk melacak unit kerja ASAL sebuah alat lewat
+    // riwayat pengajuan idle-nya, supaya alat yang sudah pindah ke lokasi
+    // "Unused" tetap bisa dikenali sebagai milik unit yang mengajukan idle.
+    public function pengajuanIdle()
+    {
+        return $this->hasMany(PengajuanIdle::class, 'id_alat', 'id_alat');
     }
 }

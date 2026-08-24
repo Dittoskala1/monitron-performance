@@ -1,10 +1,10 @@
-{{-- resources/views/auth/login.blade.php --}}
+{{-- resources/views/auth/forgot-password.blade.php --}}
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Monitoring Alat</title>
+    <title>Lupa Password - Monitoring Alat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -27,10 +27,7 @@
 
         .background-image {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background-image: url('{{ asset('image/Injourney.jpg') }}');
             background-size: cover;
             background-position: center;
@@ -42,12 +39,9 @@
 
         .background-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, 
-                rgba(40, 40, 50, 0.6) 0%, 
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg,
+                rgba(40, 40, 50, 0.6) 0%,
                 rgba(60, 60, 70, 0.5) 50%,
                 rgba(40, 40, 50, 0.6) 100%
             );
@@ -58,75 +52,17 @@
             position: relative;
             z-index: 2;
             width: 100%;
-            max-width: 1200px;
+            max-width: 480px;
             margin: 0 auto;
             padding: 20px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 60px;
+            justify-content: center;
             min-height: 100vh;
         }
 
-        .brand-section {
-            flex: 1;
-            padding: 20px;
-            color: #fff;
-            max-width: 500px;
-        }
-
-        .brand-section .logo {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            margin-bottom: 30px;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 2px 20px rgba(0,0,0,0.2);
-        }
-
-        .brand-section .logo i {
-            margin-right: 10px;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .brand-section .tagline {
-            font-size: 48px;
-            font-weight: 300;
-            line-height: 1.2;
-            margin-bottom: 20px;
-            text-shadow: 0 2px 30px rgba(0,0,0,0.2);
-        }
-
-        .brand-section .tagline .highlight {
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.95);
-        }
-
-        .brand-section .tagline .or-text {
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 20px;
-            font-weight: 300;
-        }
-
-        .brand-section .description {
-            font-size: 16px;
-            color: rgba(255, 255, 255, 0.6);
-            line-height: 1.8;
-            font-weight: 300;
-            max-width: 400px;
-            text-shadow: 0 1px 20px rgba(0,0,0,0.15);
-        }
-
-        .brand-section .description .become-reality {
-            display: block;
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 5px;
-            font-weight: 400;
-        }
-
         .login-card {
-            flex: 1;
+            width: 100%;
             max-width: 420px;
             background: rgba(255, 255, 255, 0.10);
             backdrop-filter: blur(25px);
@@ -134,7 +70,7 @@
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 24px;
             padding: 45px 40px 40px;
-            box-shadow: 
+            box-shadow:
                 0 30px 80px rgba(0, 0, 0, 0.15),
                 inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
@@ -145,13 +81,19 @@
             font-weight: 400;
             letter-spacing: 4px;
             text-transform: uppercase;
-            margin-bottom: 30px;
+            margin-bottom: 8px;
             opacity: 0.8;
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        .login-card .card-subtitle {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 13px;
+            font-weight: 300;
+            line-height: 1.6;
+            margin-bottom: 26px;
         }
+
+        .form-group { margin-bottom: 20px; }
 
         .form-group label {
             color: rgba(255, 255, 255, 0.5);
@@ -219,51 +161,21 @@
             margin-bottom: 20px;
         }
 
-        .alert i {
-            margin-right: 8px;
-        }
+        .alert i { margin-right: 8px; }
 
-        .forgot-link {
-            display: inline-block;
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             font-size: 13px;
             color: rgba(255, 255, 255, 0.55);
             text-decoration: none;
+            margin-top: 22px;
             transition: color 0.2s ease;
         }
 
-        .forgot-link:hover {
+        .back-link:hover {
             color: rgba(255, 255, 255, 0.9);
-            text-decoration: underline;
-        }
-
-        @media (max-width: 992px) {
-            .login-container {
-                flex-direction: column;
-                justify-content: center;
-                gap: 30px;
-                padding: 30px 20px;
-            }
-
-            .brand-section {
-                text-align: center;
-                max-width: 100%;
-            }
-
-            .brand-section .description {
-                max-width: 100%;
-                margin: 0 auto;
-            }
-
-            .brand-section .tagline {
-                font-size: 36px;
-            }
-
-            .login-card {
-                max-width: 100%;
-                width: 100%;
-                max-width: 440px;
-                margin: 0 auto;
-            }
         }
 
         @media (max-width: 480px) {
@@ -271,49 +183,19 @@
                 padding: 30px 24px 30px;
                 border-radius: 18px;
             }
-
-            .brand-section .tagline {
-                font-size: 28px;
-            }
-
-            .brand-section .logo {
-                font-size: 22px;
-            }
-
-            .brand-section .description {
-                font-size: 14px;
-            }
-
-            .brand-section .description .become-reality {
-                font-size: 16px;
-            }
         }
     </style>
 </head>
 <body>
-    <!-- Background Image -->
     <div class="background-image"></div>
     <div class="background-overlay"></div>
 
-    <!-- Main Container -->
     <div class="login-container">
-    <!-- Left Side - Branding -->
-    <div class="brand-section">
-        <div class="logo">
-            <i class="bi bi-shield-check"></i> MONITORING ALAT
-        </div>
-        <div class="tagline">
-            Sistem Monitoring Manajemen Alat<br>
-            <span class="highlight">Fasilitasi Penerbangan</span>
-        </div>
-        <div class="description">
-            Silakan masuk menggunakan akun yang terdaftar.
-        </div>
-    </div>
-
-        <!-- Right Side - Login Card -->
         <div class="login-card">
-            <div class="card-title">SIGN IN</div>
+            <div class="card-title">BUAT PASSWORD BARU</div>
+            <div class="card-subtitle">
+                Masukkan username Anda, lalu tentukan password baru untuk akun tersebut.
+            </div>
 
             @if ($errors->any())
                 <div class="alert">
@@ -322,41 +204,46 @@
                 </div>
             @endif
 
-            @if (session('success'))
-                <div class="alert" style="background: rgba(50, 200, 50, 0.08); border-color: rgba(50, 200, 50, 0.10); color: rgba(200, 255, 200, 0.8);">
-                    <i class="bi bi-check-circle"></i>
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            <form action="{{ route('login.post') }}" method="POST">
+            <form action="{{ route('password.reset') }}" method="POST">
                 @csrf
-                
+
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" 
+                    <input type="text"
                            id="username"
-                           name="username" 
-                           class="form-control" 
-                           placeholder="Enter your username"
+                           name="username"
+                           class="form-control"
+                           placeholder="Masukkan username Anda"
                            value="{{ old('username') }}"
                            required>
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" 
+                    <label for="password">Password Baru</label>
+                    <input type="password"
                            id="password"
-                           name="password" 
-                           class="form-control" 
-                           placeholder="Enter your password"
+                           name="password"
+                           class="form-control"
+                           placeholder="Minimal 6 karakter"
                            required>
                 </div>
 
-                <button type="submit" class="btn-signin">Sign In</button>
+                <div class="form-group">
+                    <label for="password_confirmation">Konfirmasi Password Baru</label>
+                    <input type="password"
+                           id="password_confirmation"
+                           name="password_confirmation"
+                           class="form-control"
+                           placeholder="Ulangi password baru"
+                           required>
+                </div>
 
-                <div class="text-center mt-3">
-                    <a href="{{ route('password.forgot') }}" class="forgot-link">Lupa Password?</a>
+                <button type="submit" class="btn-signin">Simpan Password Baru</button>
+
+                <div class="text-center">
+                    <a href="{{ route('login') }}" class="back-link">
+                        <i class="bi bi-arrow-left"></i> Kembali ke halaman login
+                    </a>
                 </div>
             </form>
         </div>

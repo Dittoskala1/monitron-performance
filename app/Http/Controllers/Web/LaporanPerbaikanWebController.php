@@ -18,15 +18,18 @@ class LaporanPerbaikanWebController extends Controller
     public function index(Request $request)
     {
         $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
+        $unit      = $this->unitKerjaSaya();
 
         $laporan = LaporanPerbaikan::with(['alat.lokasi.bandara', 'pengguna'])
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('alat.lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
-            ->when($role === 'afet_regional' && $request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q2) => $q2->where('id_bandara', $request->id_bandara)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->kategori_kerusakan, fn($q) => $q->where('kategori_kerusakan', $request->kategori_kerusakan))
             ->when($request->tanggal_dari, fn($q) => $q->whereDate('tanggal_kerusakan', '>=', $request->tanggal_dari))
@@ -34,13 +37,15 @@ class LaporanPerbaikanWebController extends Controller
             ->orderByDesc('tanggal_kerusakan')
             ->paginate(15);
 
-        $bandara = Bandara::orderBy('nama_bandara')->get();
+        $bandara = $isLocked
+            ? Bandara::where('id_bandara', $idBandara)->get()
+            : Bandara::orderBy('nama_bandara')->get();
 
-        return view('admin.laporan-perbaikan.index', compact('laporan', 'bandara'));
+        return view('admin.laporan-perbaikan.index', compact('laporan', 'bandara', 'isLocked'));
     }
 
     /**
-     * - afet_bandara : hanya bisa lihat detail laporan di bandaranya sendiri
+     * - role terkunci (afet_bandara, div_head, gm_kc) : hanya bisa lihat detail laporan di bandaranya sendiri
      */
     public function show($id)
     {
@@ -50,48 +55,55 @@ class LaporanPerbaikanWebController extends Controller
         $laporan = LaporanPerbaikan::with(['alat.lokasi.bandara', 'pengguna'])
             ->findOrFail($id);
 
-        if ($role === 'afet_bandara' && ($laporan->alat->lokasi->id_bandara ?? null) != $idBandara) {
+        if ($this->isBandaraLocked($role) && ($laporan->alat->lokasi->id_bandara ?? null) != $idBandara) {
             abort(403, 'Anda tidak memiliki akses ke laporan ini.');
+        }
+
+        if (! $this->alatMasukCakupanUnit($laporan->alat)) {
+            abort(403, 'Alat ini bukan cakupan unit kerja Anda.');
         }
 
         return view('admin.laporan-perbaikan.show', compact('laporan'));
     }
 
     /**
-     * Export Excel — afet_bandara dipaksa export hanya bandaranya sendiri.
+     * Export Excel — role terkunci dipaksa export hanya bandaranya sendiri.
      */
     public function exportExcel(Request $request)
     {
         $role      = session('pengguna.role');
         $idBandara = session('pengguna.id_bandara');
 
-        $idBandaraUntukExport = $role === 'afet_bandara' ? $idBandara : $request->id_bandara;
+        $idBandaraUntukExport = $this->isBandaraLocked($role) ? $idBandara : $request->id_bandara;
 
         $export = new LaporanPerbaikanExport(
             $idBandaraUntukExport,
             $request->status,
             $request->kategori_kerusakan,
             $request->tanggal_dari,
-            $request->tanggal_sampai
+            $request->tanggal_sampai,
+            $this->unitKerjaSaya()
         );
 
         return $export->export();
     }
 
     /**
-     * Export PDF — afet_bandara dipaksa export hanya bandaranya sendiri.
+     * Export PDF — role terkunci dipaksa export hanya bandaranya sendiri.
      */
     public function exportPdf(Request $request)
     {
         $role      = session('pengguna.role');
         $idBandara = session('pengguna.id_bandara');
+        $unit      = $this->unitKerjaSaya();
 
-        $idBandaraUntukExport = $role === 'afet_bandara' ? $idBandara : $request->id_bandara;
+        $idBandaraUntukExport = $this->isBandaraLocked($role) ? $idBandara : $request->id_bandara;
 
         $laporan = LaporanPerbaikan::with(['alat.lokasi.bandara', 'pengguna'])
             ->when($idBandaraUntukExport, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q2) => $q2->where('id_bandara', $idBandaraUntukExport)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->kategori_kerusakan, fn($q) => $q->where('kategori_kerusakan', $request->kategori_kerusakan))
             ->when($request->tanggal_dari, fn($q) => $q->whereDate('tanggal_kerusakan', '>=', $request->tanggal_dari))

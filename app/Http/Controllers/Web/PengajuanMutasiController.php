@@ -9,6 +9,7 @@ use App\Models\VerifikasiMobilisasiMutasi;
 use App\Models\DokumenMutasi;
 use App\Models\PengajuanBooking;
 use App\Models\Alat;
+use App\Models\Notifikasi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -20,7 +21,7 @@ class PengajuanMutasiController extends Controller
         $idBandara = session('pengguna.id_bandara');
 
         $mutasi = PengajuanMutasi::with(['alat', 'bandaraPemberi', 'bandaraPenerima', 'pemohon'])
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($role === 'afet_bandara' || $role === 'div_head', function ($q) use ($idBandara) {
                 $q->where(function ($q2) use ($idBandara) {
                     $q2->where('id_bandara_pemberi', $idBandara)
                        ->orWhere('id_bandara_penerima', $idBandara);
@@ -97,8 +98,8 @@ class PengajuanMutasiController extends Controller
             }
         
             $booking->update(['status' => 'Lanjut Mutasi']);
-        
-            // TODO: Notifikasi ke CEO (approve), Admin Regional (info), HO (info)
+
+            Notifikasi::mutasiDiajukan($mutasi, $alat, session('pengguna.nama'));
         });
 
         return redirect()->route('admin.peralatan-mutasi.index')
@@ -115,6 +116,8 @@ class PengajuanMutasiController extends Controller
                 'verifikasiMobilisasi', 'dokumen',
             ])
             ->findOrFail($id);
+
+        $this->pastikanAksesMutasi($mutasi);
 
         return view('admin.peralatan-mutasi.show', compact('mutasi'));
     }
@@ -136,6 +139,8 @@ class PengajuanMutasiController extends Controller
 
         // TODO: Notifikasi ke GM Pemberi (approve)
 
+        Notifikasi::mutasiDisetujuiCeo($mutasi, $mutasi->alat, session('pengguna.nama'));
+
         return back()->with('success', 'Disetujui CEO. Menunggu approval GM Pemberi.');
     }
 
@@ -153,6 +158,8 @@ class PengajuanMutasiController extends Controller
         ]);
 
         // TODO: Notifikasi ke pemohon (revisi diperlukan)
+
+        Notifikasi::mutasiDitolakCeoRevisi($mutasi, $mutasi->alat, $request->alasan_reject_ceo);
 
         return back()->with('success', 'Pengajuan ditolak CEO. Pemohon perlu merevisi.');
     }
@@ -175,6 +182,8 @@ class PengajuanMutasiController extends Controller
 
         // TODO: Notifikasi ke CEO (perlu teruskan keputusan)
 
+        Notifikasi::mutasiKeputusanGm($mutasi, $mutasi->alat, 'Approve', session('pengguna.nama'));
+
         return back()->with('success', 'Disetujui GM Pemberi. Menunggu CEO meneruskan keputusan.');
     }
 
@@ -195,6 +204,8 @@ class PengajuanMutasiController extends Controller
         ]);
 
         // TODO: Notifikasi ke CEO (perlu teruskan penolakan)
+
+        Notifikasi::mutasiKeputusanGm($mutasi, $mutasi->alat, 'Reject', session('pengguna.nama'));
 
         return back()->with('success', 'Ditolak GM Pemberi. Menunggu CEO meneruskan keputusan.');
     }
@@ -221,6 +232,8 @@ class PengajuanMutasiController extends Controller
 
             // TODO: Notifikasi ke pemohon (GM menolak, revisi diperlukan)
 
+            Notifikasi::mutasiGmDitolakDiteruskan($mutasi, $mutasi->alat);
+
             return back()->with('success', 'Penolakan GM Pemberi diteruskan ke pemohon.');
         }
 
@@ -231,6 +244,8 @@ class PengajuanMutasiController extends Controller
         ]);
 
         // TODO: Notifikasi ke Admin AFET Bandara Pemberi (wajib upload BA)
+
+        Notifikasi::mutasiSiapUploadBaIdle($mutasi, $mutasi->alat);
 
         return back()->with('success', 'Approval GM Pemberi diteruskan. Menunggu upload BA Pemastian Fasilitas Idle.');
     }
@@ -268,6 +283,8 @@ class PengajuanMutasiController extends Controller
 
         // TODO: Notifikasi ke AFET Regional (review & konfirmasi)
 
+        Notifikasi::mutasiBaIdlePerluDikonfirmasi($mutasi, $mutasi->alat);
+
         return back()->with('success', 'Dokumen BA berhasil diupload. Menunggu konfirmasi AFET Regional.');
     }
 
@@ -288,6 +305,8 @@ class PengajuanMutasiController extends Controller
         ]);
 
         // TODO: Notifikasi konfirmasi fasilitas idle terkirim
+
+        Notifikasi::mutasiSiapMobilisasi($mutasi, $mutasi->alat);
 
         return back()->with('success', 'Fasilitas idle dikonfirmasi. Alat siap dimobilisasi.');
     }
@@ -340,6 +359,8 @@ class PengajuanMutasiController extends Controller
         });
 
         // TODO: Notifikasi massal — KC Penerima, KC Pemberi, GM Pemberi, GM Penerima, CEO
+
+        Notifikasi::mutasiMobilisasiSelesai($mutasi, $mutasi->alat);
 
         return back()->with('success', 'Mobilisasi selesai. Menunggu verifikasi dari Regional, Penerima, dan Pemberi.');
     }
@@ -435,6 +456,8 @@ class PengajuanMutasiController extends Controller
 
             // TODO: Notifikasi ke Admin AFET Bandara Penerima — perlu upload ulang mobilisasi
 
+            Notifikasi::mutasiVerifikasiTidakSesuai($mutasi, $mutasi->alat);
+
             return back()->with('success', 'Verifikasi menyatakan tidak sesuai. Mobilisasi perlu diulang.');
         }
 
@@ -442,6 +465,8 @@ class PengajuanMutasiController extends Controller
             $mutasi->update(['status' => 'Menunggu Sertifikasi']);
 
             // TODO: Notifikasi ke Admin AFET Bandara Penerima — lanjut upload sertifikasi
+
+            Notifikasi::mutasiSiapSertifikasi($mutasi, $mutasi->alat);
 
             return back()->with('success', 'Semua pihak sudah konfirmasi. Menunggu sertifikasi.');
         }
@@ -496,6 +521,8 @@ class PengajuanMutasiController extends Controller
 
     // TODO: Notifikasi arsip ke CEO, HO, Admin AFET
 
+    Notifikasi::mutasiSelesai($mutasi, $mutasi->alat);
+
     return back()->with('success', 'Sertifikasi selesai. Proses mutasi tuntas.');
 }
 
@@ -504,16 +531,47 @@ class PengajuanMutasiController extends Controller
     public function deleteDokumen($idMutasi, $idDokumen)
     {
         $dokumen = DokumenMutasi::where('id_pengajuan_mutasi', $idMutasi)->where('id_dokumen', $idDokumen)->firstOrFail();
+
+        $mutasi = PengajuanMutasi::findOrFail($idMutasi);
+        $this->pastikanAksesMutasi($mutasi);
+
         Storage::disk('public')->delete($dokumen->path_file);
         $dokumen->delete();
         return back()->with('success', 'Dokumen berhasil dihapus.');
     }
 
     public function downloadDokumen($idDokumen)
-    {
-        $dokumen = DokumenMutasi::findOrFail($idDokumen);
-        return Storage::disk('public')->download($dokumen->path_file, $dokumen->nama_file);
+{
+    $dokumen = DokumenMutasi::findOrFail($idDokumen);
+
+    // Ambil data pengajuan mutasi
+    $mutasi = PengajuanMutasi::findOrFail(
+        $dokumen->id_pengajuan_mutasi
+    );
+
+    // Pastikan user memang memiliki akses
+    // terhadap pengajuan mutasi tersebut
+    $this->pastikanAksesMutasi($mutasi);
+
+    // Pastikan file benar-benar tersedia
+    $disk = Storage::disk('public');
+
+    if (! $disk->exists($dokumen->path_file)) {
+        abort(404, 'Dokumen tidak ditemukan.');
     }
+
+    // Ambil lokasi fisik file
+    $path = $disk->path($dokumen->path_file);
+
+    // Tentukan MIME type file
+    $mimeType = $disk->mimeType($dokumen->path_file);
+
+    // Tampilkan file langsung di browser
+    return response()->file($path, [
+        'Content-Type' => $mimeType,
+        'Content-Disposition' => 'inline; filename="' . $dokumen->nama_file . '"',
+    ]);
+}
 
     // ── Helper otorisasi ──
 
@@ -544,6 +602,27 @@ class PengajuanMutasiController extends Controller
     {
         if ($mutasi->status !== $statusYangDiharapkan) {
             abort(403, 'Pengajuan ini sudah tidak berada di tahap ini.');
+        }
+    }
+
+    /**
+     * Guard untuk show()/deleteDokumen()/downloadDokumen(): role terkunci
+     * (afet_bandara, div_head, gm_kc) hanya boleh akses mutasi yang
+     * bandaranya terlibat sebagai pemberi ATAU penerima. Role bebas
+     * (afet_regional, ho, ceo) selalu lolos.
+     */
+    private function pastikanAksesMutasi(PengajuanMutasi $mutasi): void
+    {
+        $role = session('pengguna.role');
+
+        if (! $this->isBandaraLocked($role)) {
+            return;
+        }
+
+        $idBandara = session('pengguna.id_bandara');
+
+        if ($idBandara != $mutasi->id_bandara_pemberi && $idBandara != $mutasi->id_bandara_penerima) {
+            abort(403, 'Anda tidak berwenang mengakses data mutasi ini.');
         }
     }
 }

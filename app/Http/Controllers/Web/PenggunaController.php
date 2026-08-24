@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Pengguna;
 use App\Models\Bandara;
 use App\Models\Lokasi;
+use App\Models\UnitKerja;
 use App\Models\Role;
 use App\Models\Permission;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,7 @@ class PenggunaController extends Controller
             abort(403, 'Anda tidak memiliki izin untuk melihat daftar pengguna.');
         }
 
-        $pengguna = Pengguna::with(['bandara', 'lokasi', 'roles'])
+        $pengguna = Pengguna::with(['bandara', 'lokasi', 'unit', 'roles'])
             ->when($role === 'afet_bandara', function ($q) use ($idBandara, $request) {
                 $q->where('role', 'teknisi')
                   ->where('id_bandara', $idBandara)
@@ -50,11 +51,17 @@ class PenggunaController extends Controller
         $roleList = Role::orderBy('name')->get();
         // ⚠️ DIHAPUS: $permissions = Permission::all(); — tidak lagi dipakai di view
 
+        $unitKerja = UnitKerja::with('lokasi')
+            ->when($role === 'afet_bandara', fn($q) => $q->where('id_bandara', $idBandara))
+            ->orderBy('kode_unit')
+            ->get();
+
         return view('admin.pengguna.index', compact(
             'pengguna',
             'bandara',
             'lokasi',
-            'roleList'
+            'roleList',
+            'unitKerja'
         ));
     }
 
@@ -85,6 +92,7 @@ class PenggunaController extends Controller
             'password' => 'required|string|min:6',
             'id_bandara' => 'nullable|exists:bandara,id_bandara',
             'id_lokasi' => 'nullable|exists:lokasi,id_lokasi',
+            'id_unit' => 'nullable|exists:unit_kerja,id_unit',
             // ⚠️ DIHAPUS: 'permissions' => 'nullable|array', 'permissions.*' => 'exists:permissions,id',
         ];
 
@@ -107,6 +115,17 @@ class PenggunaController extends Controller
             }
         }
 
+        if ($request->filled('id_unit')) {
+            $unit = UnitKerja::find($request->id_unit);
+            $bandaraId = $request->id_bandara ?? $idBandara;
+
+            if ($unit && $unit->id_bandara != $bandaraId) {
+                return back()->withErrors([
+                    'id_unit' => 'Unit kerja tidak berada di bandara yang dipilih.'
+                ])->withInput();
+            }
+        }
+
         // ==========================================
         // SIMPAN PENGGUNA
         // ==========================================
@@ -117,6 +136,7 @@ class PenggunaController extends Controller
             'role' => $request->role,
             'id_bandara' => $request->id_bandara,
             'id_lokasi' => $request->id_lokasi,
+            'id_unit' => $request->id_unit,
         ]);
 
         // ==========================================
@@ -161,6 +181,7 @@ class PenggunaController extends Controller
             'password' => 'nullable|string|min:6',
             'id_bandara' => 'nullable|exists:bandara,id_bandara',
             'id_lokasi' => 'nullable|exists:lokasi,id_lokasi',
+            'id_unit' => 'nullable|exists:unit_kerja,id_unit',
             // ⚠️ DIHAPUS: 'permissions' => 'nullable|array', 'permissions.*' => 'exists:permissions,id',
         ];
 
@@ -183,10 +204,21 @@ class PenggunaController extends Controller
             }
         }
 
+        if ($request->filled('id_unit')) {
+            $unit = UnitKerja::find($request->id_unit);
+            $bandaraId = $request->id_bandara ?? $idBandara;
+
+            if ($unit && $unit->id_bandara != $bandaraId) {
+                return back()->withErrors([
+                    'id_unit' => 'Unit kerja tidak berada di bandara yang dipilih.'
+                ])->withInput();
+            }
+        }
+
         // ==========================================
         // UPDATE PENGGUNA
         // ==========================================
-        $data = $request->only('nama', 'username', 'role', 'id_bandara', 'id_lokasi');
+        $data = $request->only('nama', 'username', 'role', 'id_bandara', 'id_lokasi', 'id_unit');
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);

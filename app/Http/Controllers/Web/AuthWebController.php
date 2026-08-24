@@ -53,6 +53,7 @@ class AuthWebController extends Controller
             'afet_bandara',
             'afet_regional',
             'div_head',
+            'dep_head', // ⚠️ BARU
             'gm_kc',
             'ho',
             'ceo',
@@ -83,11 +84,56 @@ class AuthWebController extends Controller
             'nama_bandara' => $pengguna->bandara->nama_bandara ?? null,
             'id_lokasi'   => $pengguna->id_lokasi ?? null,
             'nama_lokasi' => $pengguna->lokasi->nama_lokasi ?? null,
+            'id_unit'     => $pengguna->id_unit ?? null,
+            'nama_unit'   => $pengguna->unit->nama_unit ?? null,
             'login_at'    => now()->toDateTimeString(),
         ]]);
 
         // Redirect ke dashboard
         return redirect()->route('admin.dashboard');
+    }
+
+    /**
+     * Tampilkan halaman "Buat Password Baru"
+     * GET /lupa-password
+     */
+    public function showForgotPassword()
+    {
+        // Jika sudah login, redirect ke dashboard
+        if (session()->has('pengguna')) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return view('auth.forgot-password');
+    }
+
+    /**
+     * Proses set password baru
+     * POST /lupa-password
+     *
+     * ⚠️ Sistem ini belum punya kolom email/OTP untuk verifikasi identitas,
+     * jadi reset password di sini murni berdasarkan username yang cocok.
+     */
+    public function resetPassword(Request $request)
+    {
+        // Validasi input
+        $request->validate([
+            'username' => 'required|string|exists:pengguna,username',
+            'password' => 'required|string|min:6|confirmed',
+        ], [
+            'username.exists' => 'Username tidak ditemukan.',
+        ]);
+
+        // Cari user berdasarkan username
+        $pengguna = Pengguna::where('username', $request->username)->first();
+
+        // Update password
+        $pengguna->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        return redirect()->route('login')
+            ->with('success', 'Password berhasil diganti. Silakan login dengan password baru Anda.');
     }
 
     /**

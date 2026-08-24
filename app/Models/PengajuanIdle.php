@@ -26,14 +26,14 @@ class PengajuanIdle extends Model
         'tanggal_pengajuan',
         'tanggal_keputusan',
         'id_pengguna_approval',
-        'id_pengguna_approval_div_head', // ⚠️ BARU
-        'tanggal_approval_div_head',      // ⚠️ BARU
+        'id_pengguna_approval_dep_head', // ⚠️ DIUBAH: sebelumnya div_head, sekarang dep_head
+        'tanggal_approval_dep_head',      // ⚠️ DIUBAH: sebelumnya div_head, sekarang dep_head
     ];
 
     protected $casts = [
         'tanggal_pengajuan' => 'datetime',
         'tanggal_keputusan' => 'datetime',
-        'tanggal_approval_div_head' => 'datetime', // ⚠️ BARU
+        'tanggal_approval_dep_head' => 'datetime', // ⚠️ DIUBAH: sebelumnya div_head
         'tanggal_terbit_alat' => 'date',            // ⚠️ BARU
     ];
 
@@ -62,9 +62,9 @@ class PengajuanIdle extends Model
         return $this->belongsTo(Pengguna::class, 'id_pengguna_approval', 'id_pengguna');
     }
 
-    public function approverDivHead()
+    public function approverDepHead()
     {
-        return $this->belongsTo(Pengguna::class, 'id_pengguna_approval_div_head', 'id_pengguna');
+        return $this->belongsTo(Pengguna::class, 'id_pengguna_approval_dep_head', 'id_pengguna');
     }
 
     public function dokumen()

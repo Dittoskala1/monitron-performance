@@ -66,7 +66,7 @@
                         </span>
                     @endif
 
-                    @if(in_array($pengajuan->status, ['Waiting Approval Div Head', 'Waiting Approval Admin AFET']))
+                    @if(in_array($pengajuan->status, ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET']))
                         <span class="badge bg-secondary ms-1">
                             <i class="bi bi-clock-history me-1"></i> Belum Pindah ke Unused
                         </span>
@@ -101,7 +101,7 @@
                         'Approved' => 'bg-success',
                         'Rejected' => 'bg-danger',
                         'Waiting Approval Admin AFET' => 'bg-info text-dark',
-                        default => 'bg-warning text-dark', // Waiting Approval Div Head
+                        default => 'bg-warning text-dark', // Waiting Approval Dep Head
                     };
                 @endphp
                 <span class="badge fs-6 {{ $statusBadge }}">
@@ -168,11 +168,11 @@
             <div class="col-md-6">
                 <p class="text-muted small fw-semibold text-uppercase mb-3">Status Keputusan</p>
                 <dl class="row mb-0">
-                    <dt class="col-5 text-muted fw-normal">Disetujui Div Head</dt>
+                    <dt class="col-5 text-muted fw-normal">Disetujui Dep Head</dt>
                     <dd class="col-7">
-                        {{ $pengajuan->approverDivHead->nama ?? '-' }}
-                        @if($pengajuan->tanggal_approval_div_head)
-                            <br><small class="text-muted">{{ \Carbon\Carbon::parse($pengajuan->tanggal_approval_div_head)->format('d F Y H:i') }}</small>
+                        {{ $pengajuan->approverDepHead->nama ?? '-' }}
+                        @if($pengajuan->tanggal_approval_dep_head)
+                            <br><small class="text-muted">{{ \Carbon\Carbon::parse($pengajuan->tanggal_approval_dep_head)->format('d F Y H:i') }}</small>
                         @endif
                     </dd>
 
@@ -243,7 +243,7 @@
                                 <i class="bi bi-eye"></i>
                             </a>
 
-                            @if(in_array($pengajuan->status, ['Waiting Approval Div Head', 'Waiting Approval Admin AFET']))
+                            @if(in_array($pengajuan->status, ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET']))
                             <form method="POST"
                                   action="{{ route('admin.peralatan-idle.hapus-dokumen', [$pengajuan->id_pengajuan, $dok->id_dokumen]) }}"
                                   onsubmit="return confirm('Hapus dokumen \'{{ $dok->nama_file }}\'?')">
@@ -271,10 +271,8 @@
             $isPemilikAlat = $idBandara == ($pengajuan->alat->id_bandara ?? null) 
                             && $idLokasi == ($pengajuan->alat->id_lokasi ?? null);
 
-            $isDivHeadBerwenang = $role === 'div_head'
-                && $pengajuan->status === 'Waiting Approval Div Head'
-                && $idBandara == ($pengajuan->alat->id_bandara ?? null)
-                && ($idLokasi === null || $idLokasi == $pengajuan->id_lokasi_asal);
+            // ⚠️ DIUBAH: $isDepHeadBerwenang dikirim dari controller (bukan dihitung
+            // di sini) karena butuh cek cakupan unit kerja (alatMasukCakupanUnit()).
 
             $isAfetRegionalBerwenang = $role === 'afet_regional'
                 && $pengajuan->status === 'Waiting Approval Admin AFET';
@@ -291,8 +289,8 @@
             );
         @endphp
 
-        @if(in_array($pengajuan->status, ['Waiting Approval Div Head', 'Waiting Approval Admin AFET']))
-            @if($isDivHeadBerwenang || $isAfetRegionalBerwenang)
+        @if(in_array($pengajuan->status, ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET']))
+            @if($isDepHeadBerwenang || $isAfetRegionalBerwenang)
 
                 @unless($lokasiAlatSesuai)
                     <div class="alert alert-warning py-2 px-3 small mb-3">
@@ -307,7 +305,7 @@
                 <div class="text-muted small mb-2">
                     <i class="bi bi-info-circle me-1"></i>
                     Alat masih berada di lokasi asal saat ini. Perpindahan ke lokasi Unused hanya terjadi
-                    otomatis setelah pengajuan disetujui penuh (kedua tahap: Div Head &amp; Admin AFET).
+                    otomatis setelah pengajuan disetujui penuh (kedua tahap: Dep Head &amp; Admin AFET).
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap">
@@ -315,7 +313,7 @@
                         @csrf
                         <button type="submit" class="btn btn-success">
                             <i class="bi bi-check-lg me-1"></i>
-                            {{ $pengajuan->status === 'Waiting Approval Div Head' ? 'Approve (Div Head)' : 'Approve Final (Admin AFET)' }}
+                            {{ $pengajuan->status === 'Waiting Approval Dep Head' ? 'Approve (Dep Head)' : 'Approve Final (Admin AFET)' }}
                         </button>
                     </form>
 
@@ -326,13 +324,13 @@
             @else
                 <div class="text-muted small">
                     <i class="bi bi-hourglass-split me-1"></i>
-                    {{ $pengajuan->status === 'Waiting Approval Div Head'
-                        ? 'Menunggu keputusan dari Divisi Head yang berwenang.'
+                    {{ $pengajuan->status === 'Waiting Approval Dep Head'
+                        ? 'Menunggu keputusan dari Dep Head yang berwenang.'
                         : 'Menunggu keputusan dari Admin AFET Regional.' }}
                     <br>
                     <i class="bi bi-info-circle me-1"></i>
                     Alat masih berada di lokasi asal (belum dipindahkan ke Unused). Alat akan otomatis
-                    dipindahkan ke Unused setelah pengajuan disetujui penuh oleh Div Head dan Admin AFET Regional.
+                    dipindahkan ke Unused setelah pengajuan disetujui penuh oleh Dep Head dan Admin AFET Regional.
                 </div>
             @endif
 

@@ -13,6 +13,7 @@ class NotifikasiController extends Controller
     public function index(Request $request)
     {
         $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
         $userId    = session('pengguna.id');
 
@@ -21,8 +22,8 @@ class NotifikasiController extends Controller
         // ==========================================
         $notifikasi = Notifikasi::with(['alat.lokasi.bandara', 'pengguna'])
             ->untukPengguna($userId)  // ← FILTER PER USER
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
-            ->when($role === 'afet_regional' && $request->id_bandara, fn($q) => $q->byBandara($request->id_bandara))
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->byBandara($request->id_bandara))
             ->when($request->status,          fn($q) => $q->where('status', $request->status))
             ->when($request->jenis,           fn($q) => $q->where('jenis', $request->jenis))
             ->when($request->prioritas,       fn($q) => $q->where('prioritas', $request->prioritas))
@@ -34,9 +35,9 @@ class NotifikasiController extends Controller
             ->withQueryString();
 
         // ==========================================
-        // FILTER BANDARA (hanya untuk afet_regional)
+        // FILTER BANDARA (hanya untuk role yang tidak dikunci)
         // ==========================================
-        $bandara = $role === 'afet_regional'
+        $bandara = !$isLocked
             ? Bandara::orderBy('nama_bandara')->get()
             : collect();
 
@@ -45,17 +46,17 @@ class NotifikasiController extends Controller
         // ==========================================
         $jumlahBelumDibaca = Notifikasi::belumDibaca()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
             ->count();
 
         $jumlahTotal = Notifikasi::untukPengguna($userId)->count();
         $jumlahDibaca = Notifikasi::sudahDibaca()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
             ->count();
         $jumlahKritis = Notifikasi::kritis()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
             ->count();
 
         $statistik = [
@@ -110,12 +111,13 @@ class NotifikasiController extends Controller
         $role      = session('pengguna.role');
         $idBandara = session('pengguna.id_bandara');
         $userId    = session('pengguna.id');
+        $isLocked  = $this->isBandaraLocked($role);
 
         // Hanya untuk notifikasi milik sendiri
         $query = Notifikasi::belumDibaca()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
-            ->when($role === 'afet_regional' && $request->id_bandara, fn($q) => $q->byBandara($request->id_bandara));
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->byBandara($request->id_bandara));
 
         $jumlah = $query->count();
         $query->update([
@@ -162,7 +164,7 @@ class NotifikasiController extends Controller
 
         $query = Notifikasi::belumDibaca()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara));
+            ->when($this->isBandaraLocked($role), fn($q) => $q->byBandara($idBandara));
 
         return response()->json([
             'jumlah' => $query->count(),
@@ -178,11 +180,12 @@ class NotifikasiController extends Controller
         $role      = session('pengguna.role');
         $idBandara = session('pengguna.id_bandara');
         $userId    = session('pengguna.id');
+        $isLocked  = $this->isBandaraLocked($role);
 
         $notifikasi = Notifikasi::with(['alat.lokasi.bandara'])
             ->belumDibaca()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
             ->orderByRaw("FIELD(prioritas, 'kritis', 'tinggi', 'sedang', 'rendah')")
             ->orderByDesc('tanggal')
             ->limit(5)
@@ -204,7 +207,7 @@ class NotifikasiController extends Controller
 
         $jumlah = Notifikasi::belumDibaca()
             ->untukPengguna($userId)
-            ->when($role === 'afet_bandara', fn($q) => $q->byBandara($idBandara))
+            ->when($isLocked, fn($q) => $q->byBandara($idBandara))
             ->count();
 
         return response()->json([

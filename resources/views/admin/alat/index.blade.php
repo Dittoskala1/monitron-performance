@@ -24,7 +24,7 @@
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
 
-            @if(session('pengguna.role') === 'afet_regional')
+            @if(!$isLocked)
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Bandara</label>
                 <select name="id_bandara" class="form-select" id="filterBandara">
@@ -101,6 +101,7 @@
                     <tr>
                         <th>No</th>
                         <th>Nama Alat</th>
+                        <th>Jenis Alat</th>
                         <th>Kode Alat</th>
                         <th>Detail Lokasi</th>
                         <th>Kategori</th>
@@ -108,6 +109,7 @@
                         <th>Bandara</th>
                         <th>Merek</th>
                         <th>Barcode</th>
+                        <th>Kondisi Terkini</th>
                         <th>Status</th>
                         <th>Aksi</th>
                     </tr>
@@ -117,6 +119,13 @@
                     <tr>
                         <td>{{ $alat->firstItem() + $i }}</td>
                         <td class="fw-semibold">{{ $a->nama_alat }}</td>
+                        <td>
+                            @if($a->jenis_alat)
+                                <span class="badge bg-light text-dark border">{{ $a->jenis_alat }}</span>
+                            @else
+                                <span class="text-muted small fst-italic">Belum diisi</span>
+                            @endif
+                        </td>
                         <td>
                             @if($a->kode_alat)
                                 <code class="small">{{ $a->kode_alat }}</code>
@@ -145,6 +154,11 @@
                             @else
                                 <span class="text-muted">-</span>
                             @endif
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ $a->warna_kondisi_terkini }}">
+                                {{ $a->kondisi_terkini ?? 'Normal' }}
+                            </span>
                         </td>
                         <td>
                             <span class="badge {{ $a->status == 'Aktif' ? 'bg-success' : 'bg-secondary' }}">
@@ -254,6 +268,19 @@
                                                    value="{{ $a->nama_alat }}" required>
                                         </div>
                                         <div class="mb-3">
+                                            <label class="form-label fw-semibold">Jenis Alat</label>
+                                            <select name="jenis_alat" class="form-select">
+                                                <option value="">- Belum Diisi -</option>
+                                                @foreach($jenisAlatOptions as $jenis)
+                                                    <option value="{{ $jenis }}"
+                                                        {{ strtolower($a->jenis_alat) == strtolower($jenis) ? 'selected' : '' }}>
+                                                        {{ $jenis }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">Dipakai buat cocokin alat ini ke Unit Kerja yang menanganinya.</small>
+                                        </div>
+                                        <div class="mb-3">
                                             <label class="form-label fw-semibold">Unit Kerja</label>
                                             <input type="text" name="unit_kerja" class="form-control"
                                                    value="{{ $a->unit_kerja }}"
@@ -289,7 +316,7 @@
                     </div>
                     @empty
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-4">Belum ada data alat</td>
+                        <td colspan="13" class="text-center text-muted py-4">Belum ada data alat</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -344,6 +371,16 @@
                         <label class="form-label fw-semibold">Nama Alat</label>
                         <input type="text" name="nama_alat" class="form-control"
                                placeholder="Contoh: X-Ray Bagasi" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Jenis Alat</label>
+                        <select name="jenis_alat" class="form-select">
+                            <option value="">- Belum Diisi -</option>
+                            @foreach($jenisAlatOptions as $jenis)
+                                <option value="{{ $jenis }}">{{ $jenis }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Dipakai buat cocokin alat ini ke Unit Kerja yang menanganinya.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Unit Kerja</label>

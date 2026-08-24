@@ -16,18 +16,23 @@ class DataHarianController extends Controller
     public function index(Request $request)
     {
         $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
+        $unit      = $this->unitKerjaSaya();
 
-        $bandara = Bandara::orderBy('nama_bandara')->get();
+        $bandara = $isLocked
+            ? Bandara::where('id_bandara', $idBandara)->get()
+            : Bandara::orderBy('nama_bandara')->get();
 
         $alat = Alat::with('lokasi.bandara')
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q))
             ->orderBy('nama_alat')
             ->get();
 
-        return view('admin.data-harian.calendar', compact('bandara', 'alat'));
+        return view('admin.data-harian.calendar', compact('bandara', 'alat', 'isLocked'));
     }
 
     /**
@@ -36,31 +41,37 @@ class DataHarianController extends Controller
     public function table(Request $request)
     {
         $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
+        $unit      = $this->unitKerjaSaya();
 
         $logs = LogHarian::with(['alat.lokasi.bandara', 'pengguna'])
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('alat.lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
-            ->when($role === 'afet_regional' && $request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q2) => $q2->where('id_bandara', $request->id_bandara)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->when($request->id_alat, fn($q) => $q->where('id_alat', $request->id_alat))
             ->when($request->tanggal,  fn($q) => $q->whereDate('tanggal', $request->tanggal))
             ->when($request->kondisi,  fn($q) => $q->where('kondisi', $request->kondisi))
             ->orderByDesc('tanggal')
             ->paginate(15);
 
-        $bandara = Bandara::orderBy('nama_bandara')->get();
+        $bandara = $isLocked
+            ? Bandara::where('id_bandara', $idBandara)->get()
+            : Bandara::orderBy('nama_bandara')->get();
 
         $alat = Alat::with('lokasi.bandara')
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q))
             ->orderBy('nama_alat')
             ->get();
 
-        return view('admin.data-harian.index', compact('logs', 'bandara', 'alat'));
+        return view('admin.data-harian.index', compact('logs', 'bandara', 'alat', 'isLocked'));
     }
 
     /**
@@ -74,8 +85,12 @@ class DataHarianController extends Controller
         $log = LogHarian::with(['alat.lokasi.bandara', 'pengguna'])
             ->findOrFail($id);
 
-        if ($role === 'afet_bandara' && ($log->alat->lokasi->id_bandara ?? null) != $idBandara) {
+        if ($this->isBandaraLocked($role) && ($log->alat->lokasi->id_bandara ?? null) != $idBandara) {
             abort(403, 'Anda tidak memiliki akses ke data log ini.');
+        }
+
+        if (! $this->alatMasukCakupanUnit($log->alat)) {
+            abort(403, 'Alat ini bukan cakupan unit kerja Anda.');
         }
 
         return view('admin.data-harian.show', compact('log'));
@@ -87,15 +102,18 @@ class DataHarianController extends Controller
     public function events(Request $request)
     {
         $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
+        $unit      = $this->unitKerjaSaya();
 
         $logs = LogHarian::with(['alat.lokasi.bandara', 'pengguna'])
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('alat.lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
-            ->when($request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->whereHas('alat.lokasi',
                 fn($q2) => $q2->where('id_bandara', $request->id_bandara)
             ))
+            ->when($unit, fn($q) => $this->scopeByUnitKerja($q, 'alat'))
             ->when($request->id_alat, fn($q) => $q->where('id_alat', $request->id_alat))
             ->when($request->kondisi, fn($q) => $q->where('kondisi', $request->kondisi))
             ->when($request->start, fn($q) => $q->whereDate('tanggal', '>=', $request->start))

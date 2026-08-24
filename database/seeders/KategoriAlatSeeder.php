@@ -1,20 +1,43 @@
 <?php
- 
+
 namespace Database\Seeders;
- 
+
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
- 
+
 class KategoriAlatSeeder extends Seeder
 {
+    /**
+     * Hanya 2 kategori alat: Faskampen & DBU.
+     * Jenis alat spesifik (X-Ray, WTMD, Fire Alarm, dst) disimpan
+     * di kolom `jenis_alat` pada tabel `alat`, BUKAN sebagai kategori
+     * terpisah. Lihat KategoriHelper::resolveKategoriId() untuk mapping
+     * jenis alat -> kategori.
+     */
     public function run(): void
     {
-        DB::table('kategori_alat')->insert([
-            ['nama_kategori' => 'Fasilitas Keamanan Penerbangan', 'deskripsi' => 'X-Ray, WTMD, HHMD dan peralatan keamanan penerbangan', 'created_at' => now(), 'updated_at' => now()],
-            ['nama_kategori' => 'Fasilitas Komunikasi & Navigasi', 'deskripsi' => 'Peralatan komunikasi dan navigasi penerbangan', 'created_at' => now(), 'updated_at' => now()],
-            ['nama_kategori' => 'Fasilitas Mekanikal & Elektrikal', 'deskripsi' => 'Peralatan mekanikal dan elektrikal bandara', 'created_at' => now(), 'updated_at' => now()],
-            ['nama_kategori' => 'Fasilitas IT & CCTV', 'deskripsi' => 'Peralatan IT, CCTV dan sistem pengawasan', 'created_at' => now(), 'updated_at' => now()],
-            ['nama_kategori' => 'Fasilitas Penunjang Operasional', 'deskripsi' => 'Peralatan penunjang operasional bandara', 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        $kategoriList = [
+            [
+                'nama_kategori' => 'Faskampen',
+                'deskripsi' => 'Fasilitas Keamanan Penerbangan: X-Ray, WTMD, HHMD, ETD, CCTV, Body Scanner, Access Control',
+            ],
+            [
+                'nama_kategori' => 'DBU',
+                'deskripsi' => 'Fasilitas Dukungan Bandar Udara (non-keamanan): Fire Alarm, Radio Communication, FIDS, Public Address, Bird Deterrent, dan fasilitas penunjang operasional lainnya',
+            ],
+        ];
+
+        foreach ($kategoriList as $kategori) {
+            DB::table('kategori_alat')->updateOrInsert(
+                ['nama_kategori' => $kategori['nama_kategori']],
+                [
+                    'deskripsi' => $kategori['deskripsi'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+
+        $this->command->info('✅ 2 kategori alat (Faskampen & DBU) siap dipakai.');
     }
 }

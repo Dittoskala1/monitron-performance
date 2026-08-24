@@ -98,7 +98,7 @@ return [
             'label' => 'Pengaturan',
             'icon' => 'bi bi-gear',
             'route' => 'admin.pengaturan.index',
-            'permission' => 'user.change-role',
+            'permission' => 'pengaturan.manage',
             'group' => 'Sistem',
         ],
     ],

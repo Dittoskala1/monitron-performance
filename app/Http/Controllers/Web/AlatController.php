@@ -11,6 +11,7 @@ use App\Models\KategoriAlat;
 use App\Models\Notifikasi;
 use App\Models\PengajuanIdle; // ⚠️ BARU
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class AlatController extends Controller
 {
@@ -21,30 +22,78 @@ class AlatController extends Controller
     public function index(Request $request)
     {
         $role      = session('pengguna.role');
+        $isLocked  = $this->isBandaraLocked($role);
         $idBandara = session('pengguna.id_bandara');
+        $idUnit    = session('pengguna.id_unit');
+        $unit      = $idUnit ? \App\Models\UnitKerja::find($idUnit) : null;
 
         $alat = Alat::with(['lokasi.bandara', 'kategori'])
-            ->when($role === 'afet_bandara', function ($q) use ($idBandara) {
+            ->when($isLocked, function ($q) use ($idBandara) {
                 $q->whereHas('lokasi', fn($q2) => $q2->where('id_bandara', $idBandara));
             })
-            ->when($role === 'afet_regional' && $request->id_bandara, fn($q) => $q->whereHas('lokasi',
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->whereHas('lokasi',
                 fn($q2) => $q2->where('id_bandara', $request->id_bandara)
             ))
+            // ⚠️ BARU: kalau akun ini terikat ke 1 unit kerja spesifik (mis. SSES T1 di CGK),
+            // batasi data alat cuma ke lokasi unit itu + jenis alat yang jadi cakupannya
+            // (kalau cakupan_alat masih kosong, dibiarkan tanpa filter jenis dulu).
+            ->when($unit, function ($q) use ($unit) {
+                if ($unit->id_lokasi) {
+                    // ⚠️ BARU: sama seperti Controller::scopeByUnitKerja() —
+                    // alat yang barusan diidle-kan (sekarang di lokasi
+                    // "Unused") tetap dianggap milik unit ini kalau riwayat
+                    // idle-nya berasal dari lokasi unit ini.
+                    $q->where(function ($qq) use ($unit) {
+                        $qq->where('id_lokasi', $unit->id_lokasi)
+                           ->orWhereHas('pengajuanIdle', function ($q2) use ($unit) {
+                                $q2->where('id_lokasi_asal', $unit->id_lokasi)
+                                   ->where('status', 'Approved');
+                            });
+                    });
+                }
+                if (!empty($unit->cakupan_alat)) {
+                    // ⚠️ Pencocokan case-insensitive: data lama dari seeder ada yang
+                    // ditulis 'X-RAY' (kapital semua) & ada yang 'X-Ray' (Title Case).
+                    // Biar keduanya tetap ke-detect sebagai jenis yang sama.
+                    $cakupanLower = array_map('strtolower', $unit->cakupan_alat);
+                    $q->whereIn(DB::raw('LOWER(jenis_alat)'), $cakupanLower);
+                }
+            })
             ->when($request->id_lokasi, fn($q) => $q->where('id_lokasi', $request->id_lokasi))
             ->when($request->status,    fn($q) => $q->where('status', $request->status))
             ->orderBy('id_lokasi')
             ->paginate(15);
 
-        $bandara = Bandara::orderBy('nama_bandara')->get();
+        $bandara = $isLocked
+            ? Bandara::where('id_bandara', $idBandara)->get()
+            : Bandara::orderBy('nama_bandara')->get();
 
         $lokasi = Lokasi::with('bandara')
-            ->when($role === 'afet_bandara', fn($q) => $q->where('id_bandara', $idBandara))
-            ->when($role === 'afet_regional' && $request->id_bandara, fn($q) => $q->where('id_bandara', $request->id_bandara))
+            ->when($isLocked, fn($q) => $q->where('id_bandara', $idBandara))
+            ->when(!$isLocked && $request->id_bandara, fn($q) => $q->where('id_bandara', $request->id_bandara))
+            // ⚠️ BARU: kalau akun ini terikat ke unit kerja yang punya lokasi spesifik
+            // (mis. SSES T2), dropdown filter lokasi cuma nampilin lokasi unit itu
+            // + lokasi "Unused" di bandara yang sama (supaya alat yang baru
+            // diidle-kan tetap bisa difilter/ditemukan).
+            ->when($unit && $unit->id_lokasi, function ($q) use ($unit) {
+                $q->where(function ($qq) use ($unit) {
+                    $qq->where('id_lokasi', $unit->id_lokasi)
+                       ->orWhere(function ($qqq) use ($unit) {
+                            $qqq->where('id_bandara', $unit->id_bandara)
+                                ->where('nama_lokasi', 'Unused');
+                        });
+                });
+            })
             ->orderBy('nama_lokasi')
             ->get();
 
         $allLokasi = Lokasi::with('bandara')
-            ->when($role === 'afet_bandara', fn($q) => $q->where('id_bandara', $idBandara))
+            ->when($isLocked, fn($q) => $q->where('id_bandara', $idBandara))
+            // ⚠️ BARU: dropdown "Tambah/Edit Alat" juga harus dibatasi ke lokasi
+            // unit kerja user, biar konsisten sama validasi backend di
+            // pastikanLokasiBolehDiakses(). Kalau unit tidak punya id_lokasi
+            // spesifik (mis. BHS/CCIT yang cakupannya se-bandara), tidak difilter.
+            ->when($unit && $unit->id_lokasi, fn($q) => $q->where('id_lokasi', $unit->id_lokasi))
             ->orderBy('nama_lokasi')
             ->get();
 
@@ -53,13 +102,13 @@ class AlatController extends Controller
         // ⚠️ BARU: alat yang sedang punya pengajuan idle aktif (belum diputuskan),
         // dipakai untuk disable tombol "Ajukan Idle" di tabel.
         $idAlatPengajuanPending = PengajuanIdle::whereIn('status', [
-                'Waiting Approval Div Head',
+                'Waiting Approval Dep Head',
                 'Waiting Approval Admin AFET',
             ])->pluck('id_alat')->toArray();
 
         return view('admin.alat.index', compact(
-            'alat', 'bandara', 'lokasi', 'allLokasi', 'kategori', 'idAlatPengajuanPending'
-        ));
+            'alat', 'bandara', 'lokasi', 'allLokasi', 'kategori', 'idAlatPengajuanPending', 'isLocked'
+        ))->with('jenisAlatOptions', \App\Http\Controllers\Web\PengaturanController::JENIS_ALAT_OPTIONS);
     }
 
     /**
@@ -74,6 +123,7 @@ class AlatController extends Controller
             'detail_lokasi'   => 'nullable|string|max:255',
             'nama_alat'       => 'required|string|max:100',
             'unit_kerja'      => 'nullable|string|max:100',
+            'jenis_alat'      => 'nullable|string|in:' . implode(',', PengaturanController::JENIS_ALAT_OPTIONS),
             'barcode'         => 'nullable|string|max:100|unique:alat,barcode',
             'merek'           => 'nullable|string|max:100',
             'ip_address'      => 'nullable|ip',
@@ -89,7 +139,7 @@ class AlatController extends Controller
         $idBandara = $lokasi->id_bandara;
 
         $data = $request->only([
-            'id_lokasi', 'id_kategori', 'kode_alat', 'detail_lokasi', 'nama_alat', 'unit_kerja',
+            'id_lokasi', 'id_kategori', 'kode_alat', 'detail_lokasi', 'nama_alat', 'unit_kerja', 'jenis_alat',
             'barcode', 'merek', 'ip_address', 'buatan', 'tahun_pembuatan', 'kondisi_awal', 'status'
         ]);
 
@@ -129,6 +179,7 @@ class AlatController extends Controller
             'detail_lokasi'   => 'nullable|string|max:255',
             'nama_alat'       => 'required|string|max:100',
             'unit_kerja'      => 'nullable|string|max:100',
+            'jenis_alat'      => 'nullable|string|in:' . implode(',', PengaturanController::JENIS_ALAT_OPTIONS),
             'barcode'         => 'nullable|string|max:100|unique:alat,barcode,' . $id . ',id_alat',
             'merek'           => 'nullable|string|max:100',
             'ip_address'      => 'nullable|ip',
@@ -144,7 +195,7 @@ class AlatController extends Controller
         $idBandara = $lokasi->id_bandara;
 
         $data = $request->only([
-            'id_lokasi', 'id_kategori', 'kode_alat', 'nama_alat', 'unit_kerja', 'detail_lokasi',
+            'id_lokasi', 'id_kategori', 'kode_alat', 'nama_alat', 'unit_kerja', 'jenis_alat', 'detail_lokasi',
             'barcode', 'merek', 'ip_address', 'buatan', 'tahun_pembuatan', 'kondisi_awal', 'status'
         ]);
 
@@ -207,13 +258,14 @@ class AlatController extends Controller
 
     /**
      * Helper: pastikan id_lokasi yang dimaksud ada di bandara milik
-     * AFET Bandara yang sedang login. AFET Regional selalu lolos.
+     * role yang terkunci (afet_bandara, div_head, dep_head, gm_kc). Role bebas
+     * (afet_regional, ho, ceo) selalu lolos.
      */
     private function pastikanLokasiBolehDiakses($idLokasi)
     {
         $role = session('pengguna.role');
 
-        if ($role !== 'afet_bandara') {
+        if (! $this->isBandaraLocked($role)) {
             return;
         }
 
@@ -225,6 +277,17 @@ class AlatController extends Controller
 
         if (! $lokasiValid) {
             abort(403, 'Anda hanya dapat mengakses data alat di bandara Anda sendiri.');
+        }
+
+        // ⚠️ BARU: kalau akun ini terikat ke unit kerja tertentu yang punya
+        // lokasi spesifik (mis. SSES T1), pastikan lokasi alat sama dengan
+        // lokasi unit tersebut.
+        $idUnit = session('pengguna.id_unit');
+        if ($idUnit) {
+            $unit = \App\Models\UnitKerja::find($idUnit);
+            if ($unit && $unit->id_lokasi && $unit->id_lokasi != $idLokasi) {
+                abort(403, 'Anda hanya dapat mengakses data alat di lokasi unit kerja Anda sendiri.');
+            }
         }
     }
 }

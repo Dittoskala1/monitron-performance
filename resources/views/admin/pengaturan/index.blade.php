@@ -337,6 +337,173 @@
     </div>
 </div>
 
+{{-- Unit Kerja --}}
+<div class="row g-4 mt-1">
+    <div class="col-12">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="bi bi-diagram-3 me-2 text-primary"></i>Unit Kerja
+                    </h6>
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalTambahUnit">
+                        <i class="bi bi-plus-circle me-1"></i> Tambah Unit
+                    </button>
+                </div>
+                <p class="text-muted small mb-3">
+                    Dipakai untuk membagi 1 bandara jadi beberapa unit terpisah (mis. CGK: BHS, CCIT, SSES T1, dst),
+                    supaya tiap unit bisa punya akun sendiri lewat halaman Pengguna.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Bandara</th>
+                                <th>Kode</th>
+                                <th>Nama Unit</th>
+                                <th>Lokasi</th>
+                                <th>Cakupan Alat</th>
+                                <th>Pengguna</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($unitKerja as $u)
+                            <tr>
+                                <td><span class="badge bg-primary">{{ $u->bandara->kode_bandara ?? '-' }}</span></td>
+                                <td class="fw-semibold">{{ $u->kode_unit }}</td>
+                                <td>{{ $u->nama_unit }}</td>
+                                <td>{{ $u->lokasi->nama_lokasi ?? 'Semua Lokasi' }}</td>
+                                <td>
+                                    @forelse(($u->cakupan_alat ?? []) as $jenis)
+                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ $jenis }}</span>
+                                    @empty
+                                        <span class="text-muted small fst-italic">Belum diisi</span>
+                                    @endforelse
+                                </td>
+                                <td><span class="badge bg-secondary">{{ $u->pengguna_count }} akun</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning me-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditUnit{{ $u->id_unit }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form action="{{ route('admin.pengaturan.unit.delete', $u->id_unit) }}"
+                                          method="POST" class="d-inline"
+                                          onsubmit="return confirm('Yakin hapus unit ini?')">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+
+                            {{-- Modal Edit Unit --}}
+                            <div class="modal fade" id="modalEditUnit{{ $u->id_unit }}" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Unit Kerja</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="{{ route('admin.pengaturan.unit.update', $u->id_unit) }}" method="POST">
+                                            @csrf @method('PUT')
+                                            <div class="modal-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Bandara</label>
+                                                            <select name="id_bandara" class="form-select" required>
+                                                                @foreach($bandara as $b)
+                                                                    <option value="{{ $b->id_bandara }}"
+                                                                        {{ $u->id_bandara == $b->id_bandara ? 'selected' : '' }}>
+                                                                        {{ $b->kode_bandara }} - {{ $b->nama_bandara }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Lokasi (opsional)</label>
+                                                            <select name="id_lokasi" class="form-select">
+                                                                <option value="">- Semua Lokasi -</option>
+                                                                @foreach($lokasi as $l)
+                                                                    <option value="{{ $l->id_lokasi }}"
+                                                                        {{ $u->id_lokasi == $l->id_lokasi ? 'selected' : '' }}>
+                                                                        {{ $l->bandara->kode_bandara }} - {{ $l->nama_lokasi }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                            <small class="text-muted">Kosongkan kalau unit ini cakupannya se-bandara.</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Kode Unit</label>
+                                                            <input type="text" name="kode_unit" class="form-control"
+                                                                   value="{{ $u->kode_unit }}" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Nama Unit</label>
+                                                            <input type="text" name="nama_unit" class="form-control"
+                                                                   value="{{ $u->nama_unit }}" required>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Keterangan</label>
+                                                    <textarea name="keterangan" class="form-control" rows="2">{{ $u->keterangan }}</textarea>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label fw-semibold">Cakupan Jenis Alat</label>
+                                                    <div class="row">
+                                                        @foreach($jenisAlatOptions as $jenis)
+                                                            <div class="col-md-3 col-6">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox"
+                                                                           name="cakupan_alat[]" value="{{ $jenis }}"
+                                                                           id="cakupanEdit{{ $u->id_unit }}_{{ $loop->index }}"
+                                                                           {{ in_array($jenis, $u->cakupan_alat ?? []) ? 'checked' : '' }}>
+                                                                    <label class="form-check-label small" for="cakupanEdit{{ $u->id_unit }}_{{ $loop->index }}">
+                                                                        {{ $jenis }}
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                    <small class="text-muted">Boleh dikosongkan dulu, isi belakangan.</small>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                <button type="submit" class="btn btn-primary">Simpan</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            @empty
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="bi bi-diagram-3 fs-2 d-block mb-2 opacity-50"></i>
+                                    Belum ada unit kerja
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Modal Tambah Bandara --}}
 <div class="modal fade" id="modalTambahBandara" tabindex="-1">
     <div class="modal-dialog">
@@ -443,6 +610,94 @@
                         <label class="form-label fw-semibold">Deskripsi</label>
                         <textarea name="deskripsi" class="form-control" rows="3"
                                   placeholder="Deskripsi kategori"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Tambah</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Tambah Unit Kerja --}}
+<div class="modal fade" id="modalTambahUnit" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tambah Unit Kerja</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ route('admin.pengaturan.unit.store') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Bandara</label>
+                                <select name="id_bandara" class="form-select" required>
+                                    <option value="">Pilih Bandara</option>
+                                    @foreach($bandara as $b)
+                                        <option value="{{ $b->id_bandara }}">
+                                            {{ $b->kode_bandara }} - {{ $b->nama_bandara }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Lokasi (opsional)</label>
+                                <select name="id_lokasi" class="form-select">
+                                    <option value="">- Semua Lokasi -</option>
+                                    @foreach($lokasi as $l)
+                                        <option value="{{ $l->id_lokasi }}">
+                                            {{ $l->bandara->kode_bandara }} - {{ $l->nama_lokasi }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">Kosongkan kalau unit ini cakupannya se-bandara.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Kode Unit</label>
+                                <input type="text" name="kode_unit" class="form-control"
+                                       placeholder="Contoh: SSES-T1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Nama Unit</label>
+                                <input type="text" name="nama_unit" class="form-control"
+                                       placeholder="Contoh: Safety & Security Electronic Services - Terminal 1" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Keterangan</label>
+                        <textarea name="keterangan" class="form-control" rows="2" placeholder="Opsional"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Cakupan Jenis Alat</label>
+                        <div class="row">
+                            @foreach($jenisAlatOptions as $jenis)
+                                <div class="col-md-3 col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="cakupan_alat[]" value="{{ $jenis }}"
+                                               id="cakupanTambah{{ $loop->index }}">
+                                        <label class="form-check-label small" for="cakupanTambah{{ $loop->index }}">
+                                            {{ $jenis }}
+                                        </label>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <small class="text-muted">Boleh dikosongkan dulu, isi belakangan.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -17,7 +17,7 @@
     <div class="card-body">
         <form method="GET" action="{{ route('admin.data-harian.table') }}" class="row g-3 align-items-end">
 
-            @if(session('pengguna.role') === 'afet_regional')
+            @if(!$isLocked)
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Bandara</label>
                 <select name="id_bandara" class="form-select">

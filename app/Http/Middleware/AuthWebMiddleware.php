@@ -18,7 +18,7 @@ class AuthWebMiddleware
 
         // ==========================================
         // CEK EXPIRED SESSION (2 JAM)
-        // ==========================================
+        // ==========================================   
         $user = session('pengguna');
         
         if (isset($user['login_at'])) {

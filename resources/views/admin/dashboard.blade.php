@@ -569,6 +569,33 @@ new Chart(document.getElementById('chartOperasional'), {
     }
 });
 
+// Chart Bandara
+const dataB  = {!! json_encode($performaBandara->pluck('rata_performa')) !!};
+const labelB = {!! json_encode($performaBandara->pluck('kode_bandara')) !!};
+
+if (document.getElementById('chartBandara')) {
+    new Chart(document.getElementById('chartBandara'), {
+        type: 'bar',
+        data: {
+            labels: labelB,
+            datasets: [{ data: dataB, backgroundColor: dataB.map(barColor), borderRadius: 6, borderSkipped: false, maxBarThickness: 42 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                annotation: { annotations: { threshold: THRESHOLD_LINE } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y}%` } }
+            },
+            scales: {
+                y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: 'rgba(16,24,40,0.04)' } },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+            }
+        }
+    });
+}
+
 // Chart Harian (area chart, gaya sama seperti Statistics Chart TailAdmin)
 const ctxH = document.getElementById('chartHarian').getContext('2d');
 const gradH = ctxH.createLinearGradient(0, 0, 0, 210);

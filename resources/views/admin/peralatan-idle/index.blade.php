@@ -35,7 +35,7 @@
                 <label class="form-label fw-semibold">Status</label>
                 <select name="status" class="form-select" onchange="this.form.submit()">
                     <option value="">Semua Status</option>
-                    <option value="Waiting Approval Div Head" {{ request('status') == 'Waiting Approval Div Head' ? 'selected' : '' }}>Menunggu Div Head</option>
+                    <option value="Waiting Approval Dep Head" {{ request('status') == 'Waiting Approval Dep Head' ? 'selected' : '' }}>Menunggu Dep Head</option>
                     <option value="Waiting Approval Admin AFET" {{ request('status') == 'Waiting Approval Admin AFET' ? 'selected' : '' }}>Menunggu Admin AFET</option>
                     <option value="Approved" {{ request('status') == 'Approved' ? 'selected' : '' }}>Approved (Idle)</option>
                     <option value="Rejected" {{ request('status') == 'Rejected' ? 'selected' : '' }}>Rejected</option>
@@ -108,7 +108,7 @@
                                     'Approved' => 'bg-success',
                                     'Rejected' => 'bg-danger',
                                     'Waiting Approval Admin AFET' => 'bg-info text-dark',
-                                    default => 'bg-warning text-dark', // Waiting Approval Div Head
+                                    default => 'bg-warning text-dark', // Waiting Approval Dep Head
                                 };
                             @endphp
                             <span class="badge {{ $statusBadge }}">
@@ -143,8 +143,13 @@
                                 </a>
 
                                 @php
-                                    $isPemilikAlat = session('pengguna.id_bandara') == ($p->alat->id_bandara ?? null) 
-                                                     && session('pengguna.id_lokasi') == ($p->alat->id_lokasi ?? null);
+                                    // ⚠️ DIPERBAIKI: sebelumnya juga membandingkan id_lokasi,
+                                    // yang jadi salah begitu alat pindah ke lokasi "Unused"
+                                    // (id_lokasi-nya beda dari lokasi asal user). Aturan yang
+                                    // sebenarnya berlaku di server (PengajuanBookingController)
+                                    // cuma soal bandara — "tidak bisa booking alat milik
+                                    // bandara sendiri" — jadi cukup cek id_bandara saja.
+                                    $isPemilikAlat = session('pengguna.id_bandara') == ($p->alat->id_bandara ?? null);
                                 @endphp
 
                                 @if($p->status == 'Approved' && $p->status_ketersediaan == 'available' && !$isPemilikAlat)
@@ -158,7 +163,7 @@
                                     </form>
                                 @elseif($isPemilikAlat && $p->status == 'Approved' && $p->status_ketersediaan == 'available')
                                     <span class="text-muted small" title="Anda adalah pemilik alat ini, tidak bisa booking sendiri">
-                                        <i class="bi bi-info-circle"></i> Milik sendiri
+                                        <i class="bi bi-info-circle"></i> 
                                     </span>
                                 @endif
 
