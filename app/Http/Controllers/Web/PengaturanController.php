@@ -7,27 +7,30 @@ use Illuminate\Http\Request;
 use App\Models\Bandara;
 use App\Models\Lokasi;
 use App\Models\KategoriAlat;
+use App\Models\JenisAlat;
 use App\Models\Threshold;
 use App\Models\UnitKerja;
 
 class PengaturanController extends Controller
 {
     /**
-     * Daftar jenis alat yang bisa dipilih sebagai cakupan sebuah unit kerja.
-     * Diambil dari jenis alat yang sudah dipakai di seluruh sistem
-     * (lihat AlatSeeder & DashboardSeeder).
+     * ⚠️ BARU: daftar jenis alat sekarang diambil dari tabel jenis_alat
+     * (dikelola admin lewat halaman Pengaturan), bukan hardcode di kode lagi.
+     * Method ini menggantikan const JENIS_ALAT_OPTIONS yang lama — dipanggil
+     * di tempat lain (mis. AlatController) yang butuh daftar nama jenis alat
+     * untuk validasi/dropdown.
      */
-    public const JENIS_ALAT_OPTIONS = [
-        'X-Ray', 'WTMD', 'HHMD', 'ETD', 'CCTV', 'Body Scanner', 'Access Control',
-        'Fire Alarm', 'Radio Communication', 'FIDS', 'Public Address', 'Bird Deterrent',
-        'HVAC', 'Genset', 'Conveyor Belt', 'Network Device', 'Server/UPS',
-    ];
+    public static function jenisAlatOptions(): array
+    {
+        return JenisAlat::orderBy('nama_jenis')->pluck('nama_jenis')->all();
+    }
 
     public function index()
     {
         $bandara   = Bandara::withCount('lokasi')->orderBy('nama_bandara')->get();
         $lokasi    = Lokasi::with('bandara')->orderBy('nama_lokasi')->get();
         $kategori  = KategoriAlat::withCount('alat')->orderBy('nama_kategori')->get();
+        $jenis     = JenisAlat::withCount('alat')->orderBy('nama_jenis')->get();
         $threshold = Threshold::first();
         $unitKerja = UnitKerja::with(['bandara', 'lokasi'])
             ->withCount('pengguna')
@@ -36,8 +39,8 @@ class PengaturanController extends Controller
             ->get();
 
         return view('admin.pengaturan.index', compact(
-            'bandara', 'lokasi', 'kategori', 'threshold', 'unitKerja'
-        ))->with('jenisAlatOptions', self::JENIS_ALAT_OPTIONS);
+            'bandara', 'lokasi', 'kategori', 'jenis', 'threshold', 'unitKerja'
+        ))->with('jenisAlatOptions', $jenis->pluck('nama_jenis')->all());
     }
 
     public function updateThreshold(Request $request)
@@ -183,6 +186,61 @@ class PengaturanController extends Controller
     }
 
     // ==========================================
+    // JENIS ALAT
+    // ==========================================
+    public function storeJenis(Request $request)
+    {
+        $request->validate([
+            'nama_jenis' => 'required|string|max:100|unique:jenis_alat,nama_jenis',
+            'deskripsi'  => 'nullable|string',
+        ]);
+
+        JenisAlat::create($request->only('nama_jenis', 'deskripsi'));
+
+        return back()->with('success', 'Jenis alat berhasil ditambahkan! Langsung tersedia di form tambah/edit alat.');
+    }
+
+    public function updateJenis(Request $request, $id)
+    {
+        $jenis = JenisAlat::findOrFail($id);
+
+        $request->validate([
+            'nama_jenis' => 'required|string|max:100|unique:jenis_alat,nama_jenis,' . $id . ',id_jenis',
+            'deskripsi'  => 'nullable|string',
+        ]);
+
+        $namaLama = $jenis->nama_jenis;
+        $jenis->update($request->only('nama_jenis', 'deskripsi'));
+
+        // Kalau nama jenis diubah, ikut update alat & cakupan_alat unit kerja
+        // yang masih mereferensikan nama lama (supaya tidak "putus").
+        if ($namaLama !== $jenis->nama_jenis) {
+            \App\Models\Alat::where('jenis_alat', $namaLama)->update(['jenis_alat' => $jenis->nama_jenis]);
+
+            UnitKerja::whereJsonContains('cakupan_alat', $namaLama)->get()->each(function ($unit) use ($namaLama, $jenis) {
+                $cakupan = collect($unit->cakupan_alat ?? [])
+                    ->map(fn ($j) => $j === $namaLama ? $jenis->nama_jenis : $j)
+                    ->values()->all();
+                $unit->update(['cakupan_alat' => $cakupan]);
+            });
+        }
+
+        return back()->with('success', 'Jenis alat berhasil diupdate!');
+    }
+
+    public function deleteJenis($id)
+    {
+        $jenis = JenisAlat::findOrFail($id);
+
+        if ($jenis->alat()->exists()) {
+            return back()->with('error', 'Jenis alat tidak bisa dihapus karena masih digunakan alat!');
+        }
+
+        $jenis->delete();
+        return back()->with('success', 'Jenis alat berhasil dihapus!');
+    }
+
+    // ==========================================
     // UNIT KERJA
     // ==========================================
     public function storeUnit(Request $request)
@@ -194,7 +252,7 @@ class PengaturanController extends Controller
             'nama_unit'    => 'required|string|max:150',
             'keterangan'   => 'nullable|string',
             'cakupan_alat' => 'nullable|array',
-            'cakupan_alat.*' => 'string|in:' . implode(',', self::JENIS_ALAT_OPTIONS),
+            'cakupan_alat.*' => 'string|in:' . implode(',', self::jenisAlatOptions()),
         ]);
 
         if ($request->filled('id_lokasi')) {
@@ -229,7 +287,7 @@ class PengaturanController extends Controller
             'nama_unit'    => 'required|string|max:150',
             'keterangan'   => 'nullable|string',
             'cakupan_alat' => 'nullable|array',
-            'cakupan_alat.*' => 'string|in:' . implode(',', self::JENIS_ALAT_OPTIONS),
+            'cakupan_alat.*' => 'string|in:' . implode(',', self::jenisAlatOptions()),
         ]);
 
         if ($request->filled('id_lokasi')) {

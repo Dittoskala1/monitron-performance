@@ -334,6 +334,92 @@
                 </div>
             </div>
         </div>
+
+        {{-- ⚠️ BARU: Jenis Alat --}}
+        <div class="card stat-card mt-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="bi bi-boxes me-2 text-primary"></i>Jenis Alat
+                    </h6>
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalTambahJenis">
+                        <i class="bi bi-plus-circle me-1"></i> Tambah
+                    </button>
+                </div>
+                <p class="text-muted small mb-3">
+                    Jenis alat di sini langsung tersedia di form Tambah/Edit Alat dan cakupan Unit Kerja —
+                    tidak perlu ubah kode atau deploy ulang.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nama Jenis</th>
+                                <th>Deskripsi</th>
+                                <th>Jumlah Alat</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($jenis as $j)
+                            <tr>
+                                <td class="fw-semibold">{{ $j->nama_jenis }}</td>
+                                <td>{{ $j->deskripsi ?? '-' }}</td>
+                                <td><span class="badge bg-info">{{ $j->alat_count }} alat</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning me-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditJenis{{ $j->id_jenis }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form action="{{ route('admin.pengaturan.jenis.delete', $j->id_jenis) }}"
+                                          method="POST" class="d-inline"
+                                          onsubmit="return confirm('Yakin hapus jenis alat ini?')">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+
+                            {{-- Modal Edit Jenis --}}
+                            <div class="modal fade" id="modalEditJenis{{ $j->id_jenis }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Jenis Alat</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="{{ route('admin.pengaturan.jenis.update', $j->id_jenis) }}" method="POST">
+                                            @csrf @method('PUT')
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Nama Jenis</label>
+                                                    <input type="text" name="nama_jenis" class="form-control"
+                                                           value="{{ $j->nama_jenis }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Deskripsi</label>
+                                                    <textarea name="deskripsi" class="form-control" rows="3">{{ $j->deskripsi }}</textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                <button type="submit" class="btn btn-primary">Simpan</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            @empty
+                            <tr><td colspan="4" class="text-center text-muted">Belum ada jenis alat.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -610,6 +696,37 @@
                         <label class="form-label fw-semibold">Deskripsi</label>
                         <textarea name="deskripsi" class="form-control" rows="3"
                                   placeholder="Deskripsi kategori"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Tambah</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Tambah Jenis Alat --}}
+<div class="modal fade" id="modalTambahJenis" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tambah Jenis Alat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ route('admin.pengaturan.jenis.store') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nama Jenis</label>
+                        <input type="text" name="nama_jenis" class="form-control"
+                               placeholder="Contoh: Thermal Camera" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Deskripsi</label>
+                        <textarea name="deskripsi" class="form-control" rows="3"
+                                  placeholder="Deskripsi jenis alat (opsional)"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

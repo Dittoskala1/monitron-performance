@@ -43,7 +43,7 @@ return [
             'label' => 'Peralatan Booking',
             'icon' => 'bi bi-calendar-check',
             'route' => 'admin.peralatan-booking.index',
-            'permission' => 'mutasi.view',
+            'permission' => 'booking.view', // ⚠️ DIPERBAIKI dari 'mutasi.view' — route aslinya cek booking.view
             'group' => 'Peralatan',
         ],
         [

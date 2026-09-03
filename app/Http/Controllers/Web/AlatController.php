@@ -108,7 +108,7 @@ class AlatController extends Controller
 
         return view('admin.alat.index', compact(
             'alat', 'bandara', 'lokasi', 'allLokasi', 'kategori', 'idAlatPengajuanPending', 'isLocked'
-        ))->with('jenisAlatOptions', \App\Http\Controllers\Web\PengaturanController::JENIS_ALAT_OPTIONS);
+        ))->with('jenisAlatOptions', PengaturanController::jenisAlatOptions());
     }
 
     /**
@@ -123,7 +123,7 @@ class AlatController extends Controller
             'detail_lokasi'   => 'nullable|string|max:255',
             'nama_alat'       => 'required|string|max:100',
             'unit_kerja'      => 'nullable|string|max:100',
-            'jenis_alat'      => 'nullable|string|in:' . implode(',', PengaturanController::JENIS_ALAT_OPTIONS),
+            'jenis_alat'      => 'nullable|string|in:' . implode(',', PengaturanController::jenisAlatOptions()),
             'barcode'         => 'nullable|string|max:100|unique:alat,barcode',
             'merek'           => 'nullable|string|max:100',
             'ip_address'      => 'nullable|ip',
@@ -179,7 +179,7 @@ class AlatController extends Controller
             'detail_lokasi'   => 'nullable|string|max:255',
             'nama_alat'       => 'required|string|max:100',
             'unit_kerja'      => 'nullable|string|max:100',
-            'jenis_alat'      => 'nullable|string|in:' . implode(',', PengaturanController::JENIS_ALAT_OPTIONS),
+            'jenis_alat'      => 'nullable|string|in:' . implode(',', PengaturanController::jenisAlatOptions()),
             'barcode'         => 'nullable|string|max:100|unique:alat,barcode,' . $id . ',id_alat',
             'merek'           => 'nullable|string|max:100',
             'ip_address'      => 'nullable|ip',

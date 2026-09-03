@@ -37,10 +37,8 @@
                     <option value="">Semua Status</option>
                     <option value="Waiting Approval CEO" {{ request('status') == 'Waiting Approval CEO' ? 'selected' : '' }}>Waiting Approval CEO</option>
                     <option value="Waiting Approval GM Pemberi" {{ request('status') == 'Waiting Approval GM Pemberi' ? 'selected' : '' }}>Waiting Approval GM Pemberi</option>
-                    <option value="Waiting Konfirmasi CEO" {{ request('status') == 'Waiting Konfirmasi CEO' ? 'selected' : '' }}>Waiting Konfirmasi CEO</option>
+                    <option value="Ditolak GM Pemberi" {{ request('status') == 'Ditolak GM Pemberi' ? 'selected' : '' }}>Ditolak GM Pemberi</option>
                     <option value="Menunggu Pemastian Fasilitas Idle" {{ request('status') == 'Menunggu Pemastian Fasilitas Idle' ? 'selected' : '' }}>Menunggu Pemastian Fasilitas Idle</option>
-                    <option value="Siap Mobilisasi" {{ request('status') == 'Siap Mobilisasi' ? 'selected' : '' }}>Siap Mobilisasi</option>
-                    <option value="Menunggu Verifikasi Mobilisasi" {{ request('status') == 'Menunggu Verifikasi Mobilisasi' ? 'selected' : '' }}>Menunggu Verifikasi Mobilisasi</option>
                     <option value="Menunggu Sertifikasi" {{ request('status') == 'Menunggu Sertifikasi' ? 'selected' : '' }}>Menunggu Sertifikasi</option>
                     <option value="Selesai" {{ request('status') == 'Selesai' ? 'selected' : '' }}>Selesai</option>
                 </select>
@@ -70,9 +68,17 @@
                     <tr>
                         <td>{{ $mutasi->firstItem() + $i }}</td>
                         <td class="fw-semibold">
-                            {{ $m->alat->nama_alat ?? '-' }}
-                            <br>
-                            <small class="text-muted">{{ $m->alat->kode_alat ?? '-' }}</small>
+                            @php $daftarAlat = $m->detailAlat->pluck('alat')->filter(); @endphp
+                            @if($daftarAlat->count() === 1)
+                                {{ $daftarAlat->first()->nama_alat ?? '-' }}
+                                <br>
+                                <small class="text-muted">{{ $daftarAlat->first()->kode_alat ?? '-' }}</small>
+                            @elseif($daftarAlat->count() > 1)
+                                {{ $daftarAlat->first()->nama_alat ?? '-' }}
+                                <span class="badge bg-secondary">+{{ $daftarAlat->count() - 1 }} alat lain</span>
+                            @else
+                                -
+                            @endif
                         </td>
                         <td>
                             <span class="badge bg-primary">
@@ -90,9 +96,9 @@
                             @php
                                 $statusBadge = match($m->status) {
                                     'Selesai' => 'bg-success',
-                                    'Siap Mobilisasi', 'Menunggu Sertifikasi' => 'bg-primary',
-                                    'Waiting Konfirmasi CEO', 'Menunggu Verifikasi Mobilisasi' => 'bg-info text-dark',
+                                    'Menunggu Sertifikasi' => 'bg-primary',
                                     'Menunggu Pemastian Fasilitas Idle' => 'bg-secondary',
+                                    'Ditolak GM Pemberi' => 'bg-danger',
                                     default => 'bg-warning text-dark', // Waiting Approval CEO / GM Pemberi
                                 };
                             @endphp
@@ -103,6 +109,12 @@
                                 <br>
                                 <span class="badge bg-danger mt-1">
                                     <i class="bi bi-exclamation-triangle me-1"></i> Perlu Revisi
+                                </span>
+                            @endif
+                            @if($m->status === 'Ditolak GM Pemberi' && $m->jumlah_ajukan_ulang > 0)
+                                <br>
+                                <span class="badge bg-secondary mt-1">
+                                    Diajukan ulang {{ $m->jumlah_ajukan_ulang }}x
                                 </span>
                             @endif
                         </td>

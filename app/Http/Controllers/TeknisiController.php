@@ -9,18 +9,40 @@ use App\Models\LogHarian;
 use App\Models\LaporanPerbaikan;
 use App\Models\Threshold;
 use App\Models\Notifikasi;
+use App\Models\UnitKerja;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class TeknisiController extends Controller
 {
+    /**
+     * ⚠️ BARU: samain logic scope alat dengan Web\AlatController —
+     * kalau teknisi ini terikat ke unit kerja yang punya cakupan_alat
+     * (mis. SSES cuma pegang X-Ray/WTMD/HHMD/dll), alat di luar cakupan
+     * itu gak ditampilkan meski masih satu lokasi.
+     */
+    private function scopeAlatByUnit($query, $pengguna)
+    {
+        $unit = $pengguna->id_unit ? UnitKerja::find($pengguna->id_unit) : null;
+
+        if ($unit && !empty($unit->cakupan_alat)) {
+            $cakupanLower = array_map('strtolower', $unit->cakupan_alat);
+            $query->whereIn(DB::raw('LOWER(jenis_alat)'), $cakupanLower);
+        }
+
+        return $query;
+    }
+
     public function getAlat(Request $request)
     {
         $pengguna = $request->user();
 
-        $alat = Alat::with(['lokasi.bandara', 'kategori'])
-            ->where('id_lokasi', $pengguna->id_lokasi)
-            ->where('status', 'Aktif')
-            ->get();
+        $alat = $this->scopeAlatByUnit(
+            Alat::with(['lokasi.bandara', 'kategori'])
+                ->where('id_lokasi', $pengguna->id_lokasi)
+                ->where('status', 'Aktif'),
+            $pengguna
+        )->get();
 
         return response()->json([
             'success' => true,
@@ -40,11 +62,13 @@ class TeknisiController extends Controller
 
         $pengguna = $request->user();
 
-        $alat = Alat::with(['lokasi.bandara'])
-            ->where('id_lokasi', $pengguna->id_lokasi)
-            ->where('id_alat', $request->id_alat)
-            ->where('status', 'Aktif')
-            ->first();
+        $alat = $this->scopeAlatByUnit(
+            Alat::with(['lokasi.bandara'])
+                ->where('id_lokasi', $pengguna->id_lokasi)
+                ->where('id_alat', $request->id_alat)
+                ->where('status', 'Aktif'),
+            $pengguna
+        )->first();
 
         if (!$alat) {
             return response()->json([
@@ -317,11 +341,13 @@ class TeknisiController extends Controller
     {
         $pengguna = $request->user();
 
-        $alat = Alat::with(['lokasi.bandara', 'kategori'])
-            ->where('barcode', $barcode)
-            ->where('id_lokasi', $pengguna->id_lokasi)
-            ->where('status', 'Aktif')
-            ->first();
+        $alat = $this->scopeAlatByUnit(
+            Alat::with(['lokasi.bandara', 'kategori'])
+                ->where('barcode', $barcode)
+                ->where('id_lokasi', $pengguna->id_lokasi)
+                ->where('status', 'Aktif'),
+            $pengguna
+        )->first();
 
         if (!$alat) {
             return response()->json([

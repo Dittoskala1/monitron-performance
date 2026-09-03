@@ -168,7 +168,9 @@
             <div class="col-md-6">
                 <p class="text-muted small fw-semibold text-uppercase mb-3">Status Keputusan</p>
                 <dl class="row mb-0">
-                    <dt class="col-5 text-muted fw-normal">Disetujui Dep Head</dt>
+                    <dt class="col-5 text-muted fw-normal">
+                        Disetujui {{ optional($pengajuan->approverDepHead)->role === 'div_head' ? 'Div Head' : 'Dep Head' }}
+                    </dt>
                     <dd class="col-7">
                         {{ $pengajuan->approverDepHead->nama ?? '-' }}
                         @if($pengajuan->tanggal_approval_dep_head)
@@ -236,7 +238,7 @@
                             </span>
                         </div>
                         <div class="d-flex gap-1 ms-2 flex-shrink-0">
-                            <a href="{{ asset('storage/' . $dok->path_file) }}"
+                            <a href="{{ route('admin.peralatan-idle.download-dokumen', $dok->id_dokumen) }}"
                                target="_blank"
                                class="btn btn-sm btn-outline-primary"
                                title="Lihat / Unduh">
@@ -289,6 +291,15 @@
             );
         @endphp
 
+        @if($tahap1Stuck ?? false)
+            <div class="alert alert-danger py-2 px-3 small mb-3">
+                <i class="bi bi-exclamation-octagon me-1"></i>
+                Bandara ini belum punya akun <strong>Dep Head</strong> maupun <strong>Div Head</strong>, jadi pengajuan ini
+                belum bisa diproses siapapun. Hubungi Admin AFET Regional untuk membuatkan salah satu akun tersebut
+                terlebih dulu.
+            </div>
+        @endif
+
         @if(in_array($pengajuan->status, ['Waiting Approval Dep Head', 'Waiting Approval Admin AFET']))
             @if($isDepHeadBerwenang || $isAfetRegionalBerwenang)
 
@@ -313,7 +324,11 @@
                         @csrf
                         <button type="submit" class="btn btn-success">
                             <i class="bi bi-check-lg me-1"></i>
-                            {{ $pengajuan->status === 'Waiting Approval Dep Head' ? 'Approve (Dep Head)' : 'Approve Final (Admin AFET)' }}
+                            @if($pengajuan->status === 'Waiting Approval Dep Head')
+                                Approve ({{ $approverTahap1Role === 'div_head' ? 'Div Head' : 'Dep Head' }})
+                            @else
+                                Approve Final (Admin AFET)
+                            @endif
                         </button>
                     </form>
 
@@ -324,9 +339,11 @@
             @else
                 <div class="text-muted small">
                     <i class="bi bi-hourglass-split me-1"></i>
-                    {{ $pengajuan->status === 'Waiting Approval Dep Head'
-                        ? 'Menunggu keputusan dari Dep Head yang berwenang.'
-                        : 'Menunggu keputusan dari Admin AFET Regional.' }}
+                    @if($pengajuan->status === 'Waiting Approval Dep Head')
+                        Menunggu keputusan dari {{ $approverTahap1Role === 'div_head' ? 'Div Head' : 'Dep Head' }} yang berwenang.
+                    @else
+                        Menunggu keputusan dari Admin AFET Regional.
+                    @endif
                     <br>
                     <i class="bi bi-info-circle me-1"></i>
                     Alat masih berada di lokasi asal (belum dipindahkan ke Unused). Alat akan otomatis

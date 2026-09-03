@@ -391,14 +391,30 @@ class AdminController extends Controller
 
     public function storePengguna(Request $request)
     {
-        $request->validate([
+        // ⚠️ FIX: 'dep_head' ditambahkan (sebelumnya hilang dari whitelist,
+        // jadi konsumer API gak bisa bikin akun Dep Head sama sekali —
+        // persis bug yang sama seperti di PenggunaController versi web).
+        // 'id_unit' juga ditambahkan: sebelumnya field ini gak ada di
+        // endpoint API ini sama sekali, padahal Dep Head itu per unit kerja
+        // (lihat PenggunaSeeder::seedDepHeadPerUnitCgk()) — tanpa ini, akun
+        // Dep Head yang dibuat lewat API akan selalu "tanpa unit".
+        $rules = [
             'nama'       => 'required|string|max:100',
             'username'   => 'required|string|max:50|unique:pengguna,username',
             'password'   => 'required|string|min:6',
-            'role'       => 'required|in:teknisi,afet_bandara,afet_regional,div_head,gm_kc,ho,ceo',
+            'role'       => 'required|in:teknisi,afet_bandara,afet_regional,div_head,dep_head,gm_kc,ho,ceo',
             'id_bandara' => 'nullable|exists:bandara,id_bandara',
             'id_lokasi'  => 'nullable|exists:lokasi,id_lokasi',
-        ]);
+            'id_unit'    => 'nullable|exists:unit_kerja,id_unit',
+        ];
+
+        // Dep Head wajib terikat ke 1 unit kerja spesifik, supaya cakupan
+        // approve-nya jelas (sama seperti aturan di PenggunaController web).
+        if ($request->input('role') === 'dep_head') {
+            $rules['id_unit'] = 'required|exists:unit_kerja,id_unit';
+        }
+
+        $request->validate($rules);
 
         $pengguna = Pengguna::create([
             'nama'       => $request->nama,
@@ -407,6 +423,7 @@ class AdminController extends Controller
             'role'       => $request->role,
             'id_bandara' => $request->id_bandara,
             'id_lokasi'  => $request->id_lokasi,
+            'id_unit'    => $request->id_unit,
         ]);
 
         $role = Role::where('slug', $request->role)->first();
@@ -425,16 +442,25 @@ class AdminController extends Controller
     {
         $pengguna = Pengguna::findOrFail($id);
 
-        $request->validate([
+        // ⚠️ FIX: sama seperti storePengguna() di atas — 'dep_head' dan
+        // 'id_unit' ditambahkan.
+        $rules = [
             'nama'       => 'required|string|max:100',
             'username'   => 'required|string|max:50|unique:pengguna,username,' . $id . ',id_pengguna',
             'password'   => 'nullable|string|min:6',
-            'role'       => 'required|in:teknisi,afet_bandara,afet_regional,div_head,gm_kc,ho,ceo',
+            'role'       => 'required|in:teknisi,afet_bandara,afet_regional,div_head,dep_head,gm_kc,ho,ceo',
             'id_bandara' => 'nullable|exists:bandara,id_bandara',
             'id_lokasi'  => 'nullable|exists:lokasi,id_lokasi',
-        ]);
+            'id_unit'    => 'nullable|exists:unit_kerja,id_unit',
+        ];
 
-        $data = $request->only('nama', 'username', 'role', 'id_bandara', 'id_lokasi');
+        if ($request->input('role') === 'dep_head') {
+            $rules['id_unit'] = 'required|exists:unit_kerja,id_unit';
+        }
+
+        $request->validate($rules);
+
+        $data = $request->only('nama', 'username', 'role', 'id_bandara', 'id_lokasi', 'id_unit');
         if ($request->filled('password')) {
             $data['password'] = bcrypt($request->password);
         }
@@ -503,9 +529,21 @@ class AdminController extends Controller
             ], 422);
         }
 
-        $request->validate([
-            'role' => 'required|in:teknisi,afet_bandara,afet_regional,div_head,gm_kc,ho,ceo'
-        ]);
+        // ⚠️ FIX: 'dep_head' ditambahkan ke whitelist (sebelumnya hilang, sama seperti
+        // bug di storePengguna/updatePengguna sebelum diperbaiki). Karena user_requests
+        // tidak punya kolom id_unit (pendaftar mandiri gak pernah mengisi unit kerja),
+        // 'id_unit' diterima di sini sebagai input tambahan dari admin saat approve,
+        // dan wajib diisi kalau admin memilih role dep_head — supaya gak ada akun
+        // Dep Head yang lolos tanpa unit lewat jalur approval ini.
+        $rules = [
+            'role' => 'required|in:teknisi,afet_bandara,afet_regional,div_head,dep_head,gm_kc,ho,ceo',
+        ];
+
+        if ($request->input('role') === 'dep_head') {
+            $rules['id_unit'] = 'required|exists:unit_kerja,id_unit';
+        }
+
+        $request->validate($rules);
 
         $user = Pengguna::create([
             'nama' => $userRequest->nama,
@@ -514,6 +552,7 @@ class AdminController extends Controller
             'role' => $request->role,
             'id_bandara' => $userRequest->id_bandara,
             'id_lokasi' => $userRequest->id_lokasi,
+            'id_unit' => $request->input('id_unit'),
         ]);
 
         $role = Role::where('slug', $request->role)->first();

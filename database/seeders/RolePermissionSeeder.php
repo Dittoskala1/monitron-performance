@@ -80,15 +80,13 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'booking.create', 'display_name' => 'Booking Alat', 'group' => 'peralatan_booking'],
             ['name' => 'booking.cancel', 'display_name' => 'Batalkan Booking', 'group' => 'peralatan_booking'],
 
-            // ---- MUTASI (8) ----
+            // ---- MUTASI (6) ----
             ['name' => 'mutasi.view', 'display_name' => 'Lihat Daftar Mutasi', 'group' => 'mutasi'],
             ['name' => 'mutasi.create', 'display_name' => 'Input Mapping Kebutuhan', 'group' => 'mutasi'],
             ['name' => 'mutasi.approve', 'display_name' => 'Approve Pengajuan Mutasi', 'group' => 'mutasi'],
             ['name' => 'mutasi.reject', 'display_name' => 'Reject Pengajuan Mutasi', 'group' => 'mutasi'],
             ['name' => 'mutasi.ajukan-ulang', 'display_name' => 'Ajukan Ulang Mutasi', 'group' => 'mutasi'],
-            ['name' => 'mutasi.konfirmasi-idle', 'display_name' => 'Konfirmasi Fasilitas Idle', 'group' => 'mutasi'],
-            ['name' => 'mutasi.mobilisasi', 'display_name' => 'Mobilisasi Fasilitas', 'group' => 'mutasi'],
-            ['name' => 'mutasi.sertifikasi', 'display_name' => 'Sertifikasi Fasilitas', 'group' => 'mutasi'],
+            ['name' => 'mutasi.proses-idle', 'display_name' => 'Proses Pemastian Idle & Sertifikasi', 'group' => 'mutasi'],
 
             // ---- MANAJEMEN PENGGUNA (5) ----
             ['name' => 'user.view', 'display_name' => 'Lihat Daftar Pengguna', 'group' => 'manajemen_pengguna'],
@@ -191,7 +189,7 @@ class RolePermissionSeeder extends Seeder
                 'idle.view', 'idle.create', 'idle.ajukan-ulang', 'idle.view-rejected',
                 'booking.view', 'booking.create', 'booking.cancel',
                 'mutasi.view', 'mutasi.create', 'mutasi.ajukan-ulang',
-                'mutasi.konfirmasi-idle', 'mutasi.mobilisasi', 'mutasi.sertifikasi',
+                'mutasi.proses-idle',
                 'user.view', 'user.create', 'user.edit', 'user.delete',
                 'notifikasi.terima-idle', 'notifikasi.terima-mutasi',
                 'laporan.view',
@@ -206,7 +204,7 @@ class RolePermissionSeeder extends Seeder
                 'idle.view', 'idle.approve', 'idle.reject',
                 'booking.view',
                 'mutasi.view', 'mutasi.approve', 'mutasi.reject',
-                'mutasi.konfirmasi-idle', 'mutasi.mobilisasi', 'mutasi.sertifikasi',
+                'mutasi.proses-idle',
                 'user.view', 'user.create', 'user.edit', 'user.delete', 'user.change-role',
                 'notifikasi.terima-idle', 'notifikasi.terima-mutasi',
                 'laporan.view', 'laporan.view-semua-bandara',
@@ -215,11 +213,23 @@ class RolePermissionSeeder extends Seeder
             ],
 
             // ==========================================
-            // DIVISI HEAD (sekarang hanya "mengetahui", tidak approve)
+            // DIVISI HEAD
+            // ⚠️ DIUBAH: 'idle.approve' & 'idle.reject' ditambahkan.
+            // Div Head sekarang bukan cuma "mengetahui" — di bandara yang
+            // belum punya struktur Dep Head, dialah approver tahap 1
+            // (lihat Pengguna::approverTahap1IdleRole()). Tanpa 2 permission
+            // ini, middleware `permission:idle.approve`/`idle.reject` di
+            // routes/web.php akan 403 duluan sebelum sempat sampai ke
+            // controller — jadi fallback Div Head gak akan pernah bisa
+            // dipakai walau logic di controller sudah benar. Di bandara yang
+            // masih punya Dep Head (mis. CGK), Div Head tetap gak bisa
+            // approve sungguhan karena PengajuanIdleController::approve()/
+            // reject() tetap mencocokkan role dengan approverTahap1IdleRole()
+            // per pengajuan — permission ini cuma gerbang kasar di level role.
             // ==========================================
             'div_head' => [
                 'alat.view',
-                'idle.view',
+                'idle.view', 'idle.approve', 'idle.reject',
                 'notifikasi.terima-idle',
                 'laporan.view',
                 'data-harian.view',
@@ -241,7 +251,7 @@ class RolePermissionSeeder extends Seeder
             // ==========================================
             'gm_kc' => [
                 'mutasi.view', 'mutasi.create', 'mutasi.approve', 'mutasi.reject', 'mutasi.ajukan-ulang',
-                'mutasi.konfirmasi-idle', 'mutasi.mobilisasi', 'mutasi.sertifikasi',
+                'mutasi.proses-idle',
                 'notifikasi.terima-idle', 'notifikasi.terima-mutasi',
                 'laporan.view',
             ],
@@ -264,7 +274,7 @@ class RolePermissionSeeder extends Seeder
             'ceo' => [
                 'booking.view',
                 'mutasi.view', 'mutasi.create', 'mutasi.approve', 'mutasi.reject', 'mutasi.ajukan-ulang',
-                'mutasi.konfirmasi-idle', 'mutasi.mobilisasi', 'mutasi.sertifikasi',
+                'mutasi.proses-idle',
                 'notifikasi.terima-mutasi',
                 'user.view',
                 'laporan.view', 'laporan.view-semua-bandara',

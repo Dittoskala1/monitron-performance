@@ -34,6 +34,7 @@ return new class extends Migration
             // ==========================================
             $table->enum('jenis', [
                 'alat_baru',
+                'performa_rendah',
                 'status_error',
                 'status_offline',
                 'status_online',
@@ -56,7 +57,6 @@ return new class extends Migration
                 'approve_mutasi',
                 'reject_mutasi',
                 'konfirmasi_mutasi',
-                'mobilisasi_mutasi',
                 'sertifikasi_mutasi',
             ])->default('sistem');
             

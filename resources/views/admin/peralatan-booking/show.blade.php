@@ -114,7 +114,7 @@
                         <i class="bi {{ $iconClass }} fs-5"></i>
                         <span class="small text-truncate" title="{{ $dok->nama_file }}">{{ $dok->nama_file }}</span>
                     </div>
-                    <a href="{{ asset('storage/' . $dok->path_file) }}" target="_blank"
+                    <a href="{{ route('admin.peralatan-idle.download-dokumen', $dok->id_dokumen) }}" target="_blank"
                        class="btn btn-sm btn-outline-primary" title="Lihat / Unduh">
                         <i class="bi bi-eye"></i>
                     </a>

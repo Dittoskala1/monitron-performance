@@ -18,6 +18,28 @@
     </div>
 @endif
 
+{{-- ⚠️ BARU: sebelumnya validasi gagal (mis. Dep Head tanpa Unit Kerja,
+     username sudah dipakai, dsb) redirect back dengan $errors, tapi halaman
+     ini cuma render session('success')/session('error') manual — jadi
+     $errors dari request->validate() nggak pernah kelihatan sama sekali dan
+     modalnya ketutup begitu saja tanpa penjelasan. --}}
+@if($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm">
+        <i class="bi bi-exclamation-circle me-2"></i>
+        @if($errors->count() === 1)
+            {{ $errors->first() }}
+        @else
+            <strong>Data belum bisa disimpan:</strong>
+            <ul class="mb-0 mt-1">
+                @foreach($errors->all() as $pesan)
+                    <li>{{ $pesan }}</li>
+                @endforeach
+            </ul>
+        @endif
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
 @php
     $roleSaya = session('pengguna.role');
 
@@ -363,7 +385,7 @@
                                                             </option>
                                                         @endforeach
                                                     </select>
-                                                    <small class="text-muted">Isi kalau akun ini cuma menangani 1 unit spesifik (mis. SSES T1 di CGK). Kosongkan kalau berlaku untuk seluruh bandara/lokasi.</small>
+                                                    <small class="text-muted">Isi kalau akun ini cuma menangani 1 unit spesifik (mis. SSES T1 di CGK). Kosongkan kalau berlaku untuk seluruh bandara/lokasi. <strong>Wajib diisi kalau role = Dep Head.</strong></small>
                                                 </div>
                                             </div>
                                         </div>
@@ -508,7 +530,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted">Isi kalau akun ini cuma menangani 1 unit spesifik (mis. SSES T1 di CGK). Kosongkan kalau berlaku untuk seluruh bandara/lokasi.</small>
+                                <small class="text-muted">Isi kalau akun ini cuma menangani 1 unit spesifik (mis. SSES T1 di CGK). Kosongkan kalau berlaku untuk seluruh bandara/lokasi. <strong>Wajib diisi kalau role = Dep Head.</strong></small>
                             </div>
                         </div>
                     </div>

@@ -22,9 +22,11 @@ class PenggunaController extends Controller
         $role = session('pengguna.role');
         $idBandara = session('pengguna.id_bandara');
 
-        $allowedRoles = ['afet_bandara', 'afet_regional'];
-
-        if (!in_array($role, $allowedRoles)) {
+        // ⚠️ DIPERBAIKI: sebelumnya hardcode $allowedRoles = ['afet_bandara', 'afet_regional']
+        // sehingga role lain yang sudah punya permission 'user.view' (mis. HO) tetap
+        // ke-block 403 di sini. Sekarang gerbang akses ikut permission dari database,
+        // sama seperti middleware route-nya (permission:user.view).
+        if (!hasPermission('user.view')) {
             abort(403, 'Anda tidak memiliki izin untuk melihat daftar pengguna.');
         }
 
@@ -97,9 +99,20 @@ class PenggunaController extends Controller
         ];
 
         if ($role === 'afet_regional') {
-            $rules['role'] = 'required|in:teknisi,afet_bandara,afet_regional,div_head,gm_kc,ho,ceo';
+            // ⚠️ FIX: 'dep_head' ditambahkan — sebelumnya hilang dari whitelist di form
+            // web ini (sudah lebih dulu diperbaiki di AdminController versi API, tapi
+            // controller web ini kelewatan), jadi admin AFET Regional gak bisa bikin
+            // akun Dep Head lewat halaman Kelola Pengguna biasa, cuma lewat API/seeder.
+            $rules['role'] = 'required|in:teknisi,afet_bandara,afet_regional,div_head,dep_head,gm_kc,ho,ceo';
         } else {
             $rules['role'] = 'required|in:teknisi';
+        }
+
+        // Dep Head wajib terikat ke 1 unit kerja spesifik (sama seperti di
+        // AdminController::storePengguna), biar cakupan approve-nya jelas dan
+        // gak ada dep_head "kosong" tanpa unit.
+        if ($request->input('role') === 'dep_head') {
+            $rules['id_unit'] = 'required|exists:unit_kerja,id_unit';
         }
 
         $request->validate($rules);
@@ -186,9 +199,17 @@ class PenggunaController extends Controller
         ];
 
         if ($role === 'afet_regional') {
-            $rules['role'] = 'required|in:teknisi,afet_bandara,afet_regional,div_head,gm_kc,ho,ceo';
+            // ⚠️ FIX: 'dep_head' ditambahkan — sama seperti store(), form web ini
+            // kelewatan waktu whitelist role diperbaiki di AdminController (API).
+            $rules['role'] = 'required|in:teknisi,afet_bandara,afet_regional,div_head,dep_head,gm_kc,ho,ceo';
         } else {
             $rules['role'] = 'required|in:teknisi';
+        }
+
+        // Dep Head wajib terikat ke 1 unit kerja spesifik (sama seperti store()
+        // dan AdminController::updatePengguna).
+        if ($request->input('role') === 'dep_head') {
+            $rules['id_unit'] = 'required|exists:unit_kerja,id_unit';
         }
 
         $request->validate($rules);

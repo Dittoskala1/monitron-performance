@@ -11,11 +11,8 @@ return new class extends Migration
         Schema::create('pengajuan_mutasi', function (Blueprint $table) {
             $table->id('id_pengajuan_mutasi');
 
-            $table->unsignedBigInteger('id_booking');
-            $table->foreign('id_booking')->references('id_booking')->on('pengajuan_booking')->onDelete('cascade');
-
-            $table->unsignedBigInteger('id_alat');
-            $table->foreign('id_alat')->references('id_alat')->on('alat')->onDelete('cascade');
+            // id_booking & id_alat dipindah ke tabel mutasi_alat (1 pengajuan bisa
+            // mencakup beberapa alat sekaligus, selama semuanya dari 1 bandara pemberi).
 
             $table->unsignedBigInteger('id_bandara_pemberi');
             $table->foreign('id_bandara_pemberi')->references('id_bandara')->on('bandara')->onDelete('cascade');
@@ -31,10 +28,8 @@ return new class extends Migration
             $table->enum('status', [
                 'Waiting Approval CEO',
                 'Waiting Approval GM Pemberi',
-                'Waiting Konfirmasi CEO',
+                'Ditolak GM Pemberi',
                 'Menunggu Pemastian Fasilitas Idle',
-                'Siap Mobilisasi',
-                'Menunggu Verifikasi Mobilisasi',
                 'Menunggu Sertifikasi',
                 'Selesai',
             ])->default('Waiting Approval CEO');
@@ -52,12 +47,13 @@ return new class extends Migration
             $table->enum('keputusan_gm', ['Approve', 'Reject'])->nullable();
             $table->text('catatan_gm')->nullable();
 
-            // ── CEO teruskan keputusan GM ke Admin AFET Penerima ──
-            $table->unsignedBigInteger('id_pengguna_ceo_teruskan')->nullable();
-            $table->foreign('id_pengguna_ceo_teruskan')->references('id_pengguna')->on('pengguna')->onDelete('set null');
-            $table->timestamp('tanggal_ceo_teruskan')->nullable();
+            // ── Ajukan ulang setelah Ditolak GM Pemberi (skip CEO, CEO cuma notif) ──
+            $table->unsignedBigInteger('id_pengguna_ajukan_ulang')->nullable();
+            $table->foreign('id_pengguna_ajukan_ulang')->references('id_pengguna')->on('pengguna')->onDelete('set null');
+            $table->timestamp('tanggal_ajukan_ulang')->nullable();
+            $table->unsignedInteger('jumlah_ajukan_ulang')->default(0);
 
-            // ── Pemastian Fasilitas Idle (sebelum mobilisasi) ──
+            // ── Pemastian Fasilitas Idle (dokumen BA — GM Pemberi atau Admin AFET Bandara Pemberi) ──
             $table->unsignedBigInteger('id_pengguna_upload_ba_idle')->nullable();
             $table->foreign('id_pengguna_upload_ba_idle')->references('id_pengguna')->on('pengguna')->onDelete('set null');
             $table->timestamp('tanggal_upload_ba_idle')->nullable();
@@ -65,14 +61,15 @@ return new class extends Migration
             $table->unsignedBigInteger('id_pengguna_konfirmasi_idle')->nullable();
             $table->foreign('id_pengguna_konfirmasi_idle')->references('id_pengguna')->on('pengguna')->onDelete('set null');
             $table->timestamp('tanggal_konfirmasi_idle')->nullable();
+            $table->text('alasan_reject_idle')->nullable();
 
-            // ── Mobilisasi ──
-            $table->unsignedBigInteger('id_pengguna_mobilisasi')->nullable();
-            $table->foreign('id_pengguna_mobilisasi')->references('id_pengguna')->on('pengguna')->onDelete('set null');
-            $table->timestamp('tanggal_mobilisasi')->nullable();
-            $table->text('catatan_mobilisasi')->nullable();
+            // ── BA Penerimaan Barang (dikonfirmasi KC Bandara Penerima, gak wajib bareng sertifikasi) ──
+            $table->unsignedBigInteger('id_pengguna_terima_barang')->nullable();
+            $table->foreign('id_pengguna_terima_barang')->references('id_pengguna')->on('pengguna')->onDelete('set null');
+            $table->timestamp('tanggal_terima_barang')->nullable();
+            $table->text('catatan_terima_barang')->nullable();
 
-            // ── Sertifikasi ──
+            // ── Sertifikasi (opsional, bisa Selesai tanpa dokumen) ──
             $table->unsignedBigInteger('id_pengguna_sertifikasi')->nullable();
             $table->foreign('id_pengguna_sertifikasi')->references('id_pengguna')->on('pengguna')->onDelete('set null');
             $table->timestamp('tanggal_sertifikasi')->nullable();

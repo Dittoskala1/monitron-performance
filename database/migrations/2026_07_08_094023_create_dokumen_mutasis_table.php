@@ -17,7 +17,7 @@ return new class extends Migration
             $table->enum('jenis_dokumen', [
                 'mapping_kebutuhan',
                 'pemastian_idle',
-                'mobilisasi',
+                'terima_barang',
                 'sertifikasi',
             ]);
 

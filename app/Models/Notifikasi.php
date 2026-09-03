@@ -42,8 +42,6 @@ class Notifikasi extends Model
         'pengajuan_mutasi'     => 'Pengajuan Mutasi',
         'approve_mutasi'       => 'Mutasi Disetujui',
         'reject_mutasi'        => 'Mutasi Ditolak',
-        'konfirmasi_mutasi'    => 'Konfirmasi Mutasi',
-        'mobilisasi_mutasi'    => 'Mobilisasi Mutasi',
         'sertifikasi_mutasi'   => 'Sertifikasi Mutasi',
         'status_error'         => 'Alat Rusak',
         'status_offline'       => 'Alat Gangguan',
@@ -70,8 +68,6 @@ class Notifikasi extends Model
         'pengajuan_mutasi'     => 'fa-arrow-right-arrow-left',
         'approve_mutasi'       => 'fa-check-circle',
         'reject_mutasi'        => 'fa-times-circle',
-        'konfirmasi_mutasi'    => 'fa-clipboard-check',
-        'mobilisasi_mutasi'    => 'fa-truck',
         'sertifikasi_mutasi'   => 'fa-certificate',
         'status_error'         => 'fa-exclamation-triangle',
         'status_offline'       => 'fa-plug-circle-xmark',
@@ -300,13 +296,19 @@ class Notifikasi extends Model
     }
 
     /**
-     * ⚠️ DIUBAH: yang approve tahap 1 sekarang Dep Head (per unit kerja),
-     * bukan Div Head lagi. Div Head tetap dikirimi notifikasi, tapi
-     * sifatnya cuma info ("mengetahui") — dia tidak perlu bertindak apa-apa.
+     * ⚠️ DIUBAH: yang approve tahap 1 biasanya Dep Head (per unit kerja),
+     * tapi struktur itu cuma ada di bandara yang punya akun dep_head (mis.
+     * CGK). Untuk bandara yang tidak punya struktur Dep Head, Div Head yang
+     * mengambil alih approve tahap 1 (bukan cuma "mengetahui" lagi) — lihat
+     * Pengguna::approverTahap1IdleRole(). Kalau bandara ini bahkan tidak
+     * punya akun Div Head juga, afet_regional ikut dikabari supaya ada yang
+     * sadar dan membuatkan akun approver yang hilang.
      */
     public static function buatPengajuanIdle(Alat $alat, string $pemohon, ?int $idLokasiAsal = null, ?int $idUnit = null): void
     {
-        // ---- 1. Dep Head: pihak yang harus approve tahap 1 ----
+        $approverRole = Pengguna::approverTahap1IdleRole($alat->id_bandara);
+
+        // ---- 1. Dep Head ----
         $depHeadQuery = Pengguna::whereHas('roles', fn($q) => $q->where('slug', 'dep_head'))
             ->where('id_bandara', $alat->id_bandara);
 
@@ -336,7 +338,9 @@ class Notifikasi extends Model
             ]);
         }
 
-        // ---- 2. Div Head: sekadar "mengetahui" (info only, tidak approve) ----
+        // ---- 2. Div Head: "mengetahui" saja kalau Dep Head yang approve di
+        // bandara ini, TAPI jadi approver beneran (wajib bertindak) kalau
+        // bandara ini tidak punya struktur Dep Head sama sekali.
         $divHeadQuery = Pengguna::whereHas('roles', fn($q) => $q->where('slug', 'div_head'))
             ->where('id_bandara', $alat->id_bandara);
 
@@ -344,13 +348,35 @@ class Notifikasi extends Model
             $divHeadQuery->where('id_lokasi', $idLokasiAsal);
         }
 
+        $divHeadIsApprover = $approverRole === 'div_head';
+
         foreach ($divHeadQuery->get() as $dh) {
             self::kirimKeUser($dh->id_pengguna, [
                 'alat_id'   => $alat->id_alat,
                 'jenis'     => 'pengajuan_idle',
-                'judul'     => 'Info: Pengajuan Idle Masuk',
-                'pesan'     => "Alat \"{$alat->nama_alat}\" diajukan idle oleh {$pemohon}. Untuk diketahui — menunggu persetujuan Dep Head.",
-                'prioritas' => 'rendah',
+                'judul'     => $divHeadIsApprover ? 'Pengajuan Idle Masuk' : 'Info: Pengajuan Idle Masuk',
+                'pesan'     => $divHeadIsApprover
+                    ? "Alat \"{$alat->nama_alat}\" diajukan idle oleh {$pemohon}. Bandara ini belum punya Dep Head, jadi Anda yang perlu memproses persetujuan tahap 1."
+                    : "Alat \"{$alat->nama_alat}\" diajukan idle oleh {$pemohon}. Untuk diketahui — menunggu persetujuan Dep Head.",
+                'prioritas' => $divHeadIsApprover ? 'sedang' : 'rendah',
+                'meta'      => [
+                    'nama_alat' => $alat->nama_alat,
+                    'pemohon'   => $pemohon,
+                    'waktu'     => now()->toDateTimeString(),
+                ],
+            ]);
+        }
+
+        // ---- 3. Bandara ini bahkan tidak punya Dep Head maupun Div Head ----
+        // sama sekali — kabari afet_regional supaya ada yang sadar & bikinkan
+        // salah satu akun approver tsb, karena pengajuan ini akan nyangkut.
+        if ($approverRole === null) {
+            self::kirimKeRole('afet_regional', [
+                'alat_id'   => $alat->id_alat,
+                'jenis'     => 'pengajuan_idle',
+                'judul'     => 'Pengajuan Idle Nyangkut — Approver Tahap 1 Tidak Ada',
+                'pesan'     => "Alat \"{$alat->nama_alat}\" diajukan idle oleh {$pemohon}, tapi bandaranya belum punya akun Dep Head maupun Div Head. Mohon buatkan salah satu akun tsb supaya pengajuan ini bisa diproses.",
+                'prioritas' => 'tinggi',
                 'meta'      => [
                     'nama_alat' => $alat->nama_alat,
                     'pemohon'   => $pemohon,
@@ -434,14 +460,47 @@ class Notifikasi extends Model
         ], $tambahan);
     }
 
-    /** Tahap 1: pemohon submit → CEO approve, Regional & HO sekadar tahu */
-    public static function mutasiDiajukan(PengajuanMutasi $mutasi, Alat $alat, string $pemohon): void
+    /**
+     * ⚠️ BARU: 1 pengajuan mutasi sekarang bisa mencakup beberapa alat
+     * sekaligus (lihat PengajuanMutasi::detailAlat()). Semua method notif
+     * mutasi di bawah menerima koleksi alat (bukan 1 Alat lagi), dan
+     * method ini merangkumnya jadi 1 baris teks + 1 alat_id representatif
+     * (null kalau lebih dari 1 alat, karena kolom alat_id di tabel
+     * notifikasi cuma bisa nampung 1 FK).
+     *
+     * @param iterable<Alat> $alatList
+     */
+    private static function ringkasAlat(iterable $alatList): array
     {
+        $alatList = collect($alatList)->filter();
+        $jumlah   = $alatList->count();
+
+        if ($jumlah === 0) {
+            return ['alat_id' => null, 'teks' => 'alat'];
+        }
+
+        if ($jumlah === 1) {
+            $alat = $alatList->first();
+            return ['alat_id' => $alat->id_alat, 'teks' => "alat \"{$alat->nama_alat}\""];
+        }
+
+        $namaDitampilkan = $alatList->pluck('nama_alat')->take(3)->map(fn($n) => "\"{$n}\"")->implode(', ');
+        $sisa = $jumlah - min(3, $jumlah);
+        $teks = "{$jumlah} alat ({$namaDitampilkan}" . ($sisa > 0 ? ", dan {$sisa} lainnya" : '') . ')';
+
+        return ['alat_id' => null, 'teks' => $teks];
+    }
+
+    /** Tahap 1: pemohon submit → CEO approve, Regional & HO sekadar tahu */
+    public static function mutasiDiajukan(PengajuanMutasi $mutasi, iterable $alatList, string $pemohon): void
+    {
+        $ringkas = self::ringkasAlat($alatList);
+
         $data = [
-            'alat_id'   => $alat->id_alat,
+            'alat_id'   => $ringkas['alat_id'],
             'jenis'     => 'pengajuan_mutasi',
             'judul'     => 'Pengajuan Mutasi Menunggu Approval CEO',
-            'pesan'     => "Alat \"{$alat->nama_alat}\" diajukan mutasi oleh {$pemohon}. Menunggu approval CEO.",
+            'pesan'     => "{$ringkas['teks']} diajukan mutasi oleh {$pemohon}. Menunggu approval CEO.",
             'prioritas' => 'sedang',
             'meta'      => self::metaMutasi($mutasi, ['pemohon' => $pemohon]),
         ];
@@ -452,13 +511,15 @@ class Notifikasi extends Model
     }
 
     /** Tahap 2: CEO approve → giliran GM Bandara Pemberi */
-    public static function mutasiDisetujuiCeo(PengajuanMutasi $mutasi, Alat $alat, string $approver): void
+    public static function mutasiDisetujuiCeo(PengajuanMutasi $mutasi, iterable $alatList, string $approver): void
     {
+        $ringkas = self::ringkasAlat($alatList);
+
         $data = [
-            'alat_id'   => $alat->id_alat,
+            'alat_id'   => $ringkas['alat_id'],
             'jenis'     => 'approve_mutasi',
             'judul'     => 'Mutasi Disetujui CEO — Menunggu GM Pemberi',
-            'pesan'     => "Pengajuan mutasi alat \"{$alat->nama_alat}\" disetujui CEO ({$approver}). Menunggu approval GM Bandara Pemberi.",
+            'pesan'     => "Pengajuan mutasi {$ringkas['teks']} disetujui CEO ({$approver}). Menunggu approval GM Bandara Pemberi.",
             'prioritas' => 'sedang',
             'meta'      => self::metaMutasi($mutasi, ['approver' => $approver]),
         ];
@@ -468,159 +529,171 @@ class Notifikasi extends Model
     }
 
     /** CEO reject di tahap awal → balik ke pemohon buat revisi (status tidak berubah) */
-    public static function mutasiDitolakCeoRevisi(PengajuanMutasi $mutasi, Alat $alat, string $alasan): void
+    public static function mutasiDitolakCeoRevisi(PengajuanMutasi $mutasi, iterable $alatList, string $alasan): void
     {
+        $ringkas = self::ringkasAlat($alatList);
+
         self::kirimKeUser($mutasi->id_pengguna_pemohon, [
-            'alat_id'   => $alat->id_alat,
+            'alat_id'   => $ringkas['alat_id'],
             'jenis'     => 'reject_mutasi',
             'judul'     => 'Pengajuan Mutasi Ditolak CEO — Perlu Revisi',
-            'pesan'     => "Pengajuan mutasi alat \"{$alat->nama_alat}\" ditolak CEO. Alasan: {$alasan}. Mohon revisi dan ajukan ulang.",
+            'pesan'     => "Pengajuan mutasi {$ringkas['teks']} ditolak CEO. Alasan: {$alasan}. Mohon revisi dan ajukan ulang.",
             'prioritas' => 'tinggi',
             'meta'      => self::metaMutasi($mutasi, ['alasan' => $alasan]),
         ]);
     }
 
-    /** Tahap 3: GM Pemberi kasih keputusan (approve/reject) → giliran CEO meneruskan */
-    public static function mutasiKeputusanGm(PengajuanMutasi $mutasi, Alat $alat, string $keputusan, string $approver): void
+    /** GM Pemberi approve → giliran Pemastian Fasilitas Idle. CEO & Regional cuma info. */
+    public static function mutasiDisetujuiGm(PengajuanMutasi $mutasi, iterable $alatLanjut, iterable $alatDikeluarkan, string $approver): void
     {
-        $approved = $keputusan === 'Approve';
+        $ringkas = self::ringkasAlat($alatLanjut);
+    
+        $jumlahLanjut      = collect($alatLanjut)->filter()->count();
+        $jumlahDikeluarkan = collect($alatDikeluarkan)->filter()->count();
+    
+        $infoJumlah = $jumlahDikeluarkan > 0
+            ? "{$jumlahLanjut} alat tersedia & lanjut mutasi, {$jumlahDikeluarkan} alat tidak tersedia & dikeluarkan dari pengajuan ini."
+            : "Semua {$jumlahLanjut} alat tersedia & lanjut mutasi.";
+    
         $data = [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => $approved ? 'approve_mutasi' : 'reject_mutasi',
-            'judul'     => 'GM Pemberi Sudah Memutuskan — Menunggu CEO Teruskan',
-            'pesan'     => $approved
-                ? "GM Bandara Pemberi ({$approver}) menyetujui mutasi alat \"{$alat->nama_alat}\". Menunggu CEO meneruskan keputusan."
-                : "GM Bandara Pemberi ({$approver}) menolak mutasi alat \"{$alat->nama_alat}\". Menunggu CEO meneruskan penolakan.",
+            'alat_id'   => $ringkas['alat_id'],
+            'jenis'     => 'approve_mutasi',
+            'judul'     => 'Mutasi Disetujui GM Pemberi',
+            'pesan'     => "GM Bandara Pemberi ({$approver}) menyetujui mutasi {$ringkas['teks']}. {$infoJumlah} Menunggu Pemastian Fasilitas Idle.",
             'prioritas' => 'sedang',
-            'meta'      => self::metaMutasi($mutasi, ['keputusan' => $keputusan, 'approver' => $approver]),
+            'meta'      => self::metaMutasi($mutasi, [
+                'approver'           => $approver,
+                'jumlah_lanjut'      => $jumlahLanjut,
+                'jumlah_dikeluarkan' => $jumlahDikeluarkan,
+            ]),
         ];
-
-        self::kirimKeRole('ceo', $data);
+    
+        self::kirimKeRoleBandara('gm_kc', $mutasi->id_bandara_pemberi, $data);
+        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_pemberi, $data);
+        self::kirimKeRole('afet_regional', $data);
+        self::kirimKeRole('ceo', array_merge($data, ['judul' => 'Info: Mutasi Disetujui GM Pemberi']));
         self::kirimKeRole('ho', $data);
     }
 
-    /** CEO teruskan penolakan GM → balik ke pemohon buat revisi */
-    public static function mutasiGmDitolakDiteruskan(PengajuanMutasi $mutasi, Alat $alat): void
+    /** GM Pemberi reject → status Ditolak GM Pemberi, pemohon perlu ajukan ulang */
+    public static function mutasiDitolakGm(PengajuanMutasi $mutasi, iterable $alatList, string $alasan, string $approver): void
     {
+        $ringkas = self::ringkasAlat($alatList);
+
         $data = [
-            'alat_id'   => $alat->id_alat,
+            'alat_id'   => $ringkas['alat_id'],
             'jenis'     => 'reject_mutasi',
-            'judul'     => 'Mutasi Ditolak GM Pemberi — Perlu Revisi',
-            'pesan'     => "GM Bandara Pemberi menolak mutasi alat \"{$alat->nama_alat}\". Mohon revisi dan ajukan ulang.",
+            'judul'     => 'Mutasi Ditolak GM Pemberi',
+            'pesan'     => "GM Bandara Pemberi ({$approver}) menolak mutasi {$ringkas['teks']}. Alasan: {$alasan}. Mohon ajukan ulang.",
             'prioritas' => 'tinggi',
+            'meta'      => self::metaMutasi($mutasi, ['alasan' => $alasan, 'approver' => $approver]),
+        ];
+
+        self::kirimKeUser($mutasi->id_pengguna_pemohon, $data);
+        self::kirimKeRole('ceo', array_merge($data, ['judul' => 'Info: Mutasi Ditolak GM Pemberi']));
+        self::kirimKeRole('ho', $data);
+    }
+
+    /** Pemohon ajukan ulang setelah Ditolak GM Pemberi (skip CEO, CEO cuma notif) */
+    public static function mutasiDiajukanUlangGm(PengajuanMutasi $mutasi, iterable $alatList): void
+    {
+        $ringkas = self::ringkasAlat($alatList);
+
+        $data = [
+            'alat_id'   => $ringkas['alat_id'],
+            'jenis'     => 'pengajuan_mutasi',
+            'judul'     => 'Mutasi Diajukan Ulang — Menunggu GM Pemberi',
+            'pesan'     => "Pemohon mengajukan ulang mutasi {$ringkas['teks']} setelah ditolak. Menunggu approval GM Bandara Pemberi.",
+            'prioritas' => 'sedang',
             'meta'      => self::metaMutasi($mutasi),
+        ];
+
+        self::kirimKeRoleBandara('gm_kc', $mutasi->id_bandara_pemberi, $data);
+        self::kirimKeRole('ceo', array_merge($data, ['judul' => 'Info: Mutasi Diajukan Ulang ke GM Pemberi']));
+        self::kirimKeRole('ho', $data);
+    }
+
+    /** Dokumen BA Pemastian Fasilitas Idle diupload (GM Pemberi/Admin AFET Pemberi) → AFET Regional review & konfirmasi */
+    public static function mutasiDokumenIdleDiupload(PengajuanMutasi $mutasi, iterable $alatList): void
+    {
+        $ringkas = self::ringkasAlat($alatList);
+
+        self::kirimKeRole('afet_regional', [
+            'alat_id'   => $ringkas['alat_id'],
+            'jenis'     => 'pengajuan_mutasi',
+            'judul'     => 'BA Pemastian Fasilitas Idle Perlu Dikonfirmasi',
+            'pesan'     => "Dokumen BA Pemastian Fasilitas Idle untuk {$ringkas['teks']} sudah diupload. Mohon direview & dikonfirmasi.",
+            'prioritas' => 'sedang',
+            'meta'      => self::metaMutasi($mutasi),
+        ]);
+    }
+
+    /** AFET Regional menolak Pemastian Fasilitas Idle → balik ke Waiting Approval GM Pemberi */
+    public static function mutasiIdleDitolak(PengajuanMutasi $mutasi, iterable $alatList, string $alasan): void
+    {
+        $ringkas = self::ringkasAlat($alatList);
+
+        $data = [
+            'alat_id'   => $ringkas['alat_id'],
+            'jenis'     => 'reject_mutasi',
+            'judul'     => 'Pemastian Fasilitas Idle Ditolak AFET Regional',
+            'pesan'     => "AFET Regional menolak pemastian fasilitas idle {$ringkas['teks']}. Alasan: {$alasan}. Dikembalikan ke tahap approval GM Pemberi.",
+            'prioritas' => 'tinggi',
+            'meta'      => self::metaMutasi($mutasi, ['alasan' => $alasan]),
+        ];
+
+        self::kirimKeRoleBandara('gm_kc', $mutasi->id_bandara_pemberi, $data);
+        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_pemberi, $data);
+        self::kirimKeRole('ho', $data);
+    }
+
+    /** AFET Regional konfirmasi fasilitas idle → kode alat & lokasi auto-update, giliran Menunggu Sertifikasi */
+    public static function mutasiIdleDikonfirmasi(PengajuanMutasi $mutasi, iterable $alatList): void
+    {
+        $ringkas = self::ringkasAlat($alatList);
+
+        $data = [
+            'alat_id'   => $ringkas['alat_id'],
+            'jenis'     => 'pengajuan_mutasi',
+            'judul'     => 'Fasilitas Idle Dikonfirmasi — Menunggu Sertifikasi',
+            'pesan'     => "Fasilitas idle untuk {$ringkas['teks']} sudah dikonfirmasi. Kode alat & bandara sudah diperbarui otomatis. Admin AFET Bandara Penerima bisa lanjut sertifikasi.",
+            'prioritas' => 'sedang',
+            'meta'      => self::metaMutasi($mutasi),
+        ];
+
+        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_penerima, $data);
+        self::kirimKeRoleBandara('gm_kc', $mutasi->id_bandara_penerima, $data);
+        self::kirimKeRole('ho', $data);
+    }
+
+    /** KC Bandara Penerima konfirmasi BA Penerimaan Barang (tidak wajib bareng sertifikasi) */
+    public static function mutasiTerimaBarangDikonfirmasi(PengajuanMutasi $mutasi, iterable $alatList, string $approver): void
+    {
+        $ringkas = self::ringkasAlat($alatList);
+
+        $data = [
+            'alat_id'   => $ringkas['alat_id'],
+            'jenis'     => 'pengajuan_mutasi',
+            'judul'     => 'BA Penerimaan Barang Dikonfirmasi',
+            'pesan'     => "KC Bandara Penerima ({$approver}) mengonfirmasi penerimaan barang untuk {$ringkas['teks']}.",
+            'prioritas' => 'rendah',
+            'meta'      => self::metaMutasi($mutasi, ['approver' => $approver]),
         ];
 
         self::kirimKeUser($mutasi->id_pengguna_pemohon, $data);
         self::kirimKeRole('ho', $data);
     }
 
-    /** CEO teruskan approval GM → giliran AFET Bandara Pemberi upload BA Idle */
-    public static function mutasiSiapUploadBaIdle(PengajuanMutasi $mutasi, Alat $alat): void
-    {
-        $data = [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => 'pengajuan_mutasi',
-            'judul'     => 'Menunggu Upload BA Pemastian Fasilitas Idle',
-            'pesan'     => "Mutasi alat \"{$alat->nama_alat}\" sudah disetujui berjenjang. Admin AFET Bandara Pemberi wajib upload BA Pemastian Fasilitas Idle.",
-            'prioritas' => 'sedang',
-            'meta'      => self::metaMutasi($mutasi),
-        ];
-
-        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_pemberi, $data);
-        self::kirimKeRole('ho', $data);
-    }
-
-    /** BA Idle sudah diupload → giliran AFET Regional review & konfirmasi (status belum berubah) */
-    public static function mutasiBaIdlePerluDikonfirmasi(PengajuanMutasi $mutasi, Alat $alat): void
-    {
-        self::kirimKeRole('afet_regional', [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => 'pengajuan_mutasi',
-            'judul'     => 'BA Pemastian Fasilitas Idle Perlu Dikonfirmasi',
-            'pesan'     => "Dokumen BA Pemastian Fasilitas Idle untuk alat \"{$alat->nama_alat}\" sudah diupload. Mohon direview & dikonfirmasi.",
-            'prioritas' => 'sedang',
-            'meta'      => self::metaMutasi($mutasi),
-        ]);
-    }
-
-    /** AFET Regional konfirmasi fasilitas idle → giliran AFET Bandara Penerima mobilisasi */
-    public static function mutasiSiapMobilisasi(PengajuanMutasi $mutasi, Alat $alat): void
-    {
-        $data = [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => 'pengajuan_mutasi',
-            'judul'     => 'Fasilitas Idle Dikonfirmasi — Siap Mobilisasi',
-            'pesan'     => "Fasilitas idle untuk alat \"{$alat->nama_alat}\" sudah dikonfirmasi. Admin AFET Bandara Penerima bisa mulai mobilisasi.",
-            'prioritas' => 'sedang',
-            'meta'      => self::metaMutasi($mutasi),
-        ];
-
-        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_penerima, $data);
-        self::kirimKeRole('ho', $data);
-    }
-
-    /** Mobilisasi selesai → giliran Regional + AFET Penerima + AFET Pemberi verifikasi (3 tanda tangan) */
-    public static function mutasiMobilisasiSelesai(PengajuanMutasi $mutasi, Alat $alat): void
-    {
-        $data = [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => 'mobilisasi_mutasi',
-            'judul'     => 'Mobilisasi Selesai — Menunggu Verifikasi 3 Pihak',
-            'pesan'     => "Mobilisasi alat \"{$alat->nama_alat}\" selesai. Menunggu verifikasi dari AFET Regional, Bandara Penerima, dan Bandara Pemberi.",
-            'prioritas' => 'tinggi',
-            'meta'      => self::metaMutasi($mutasi),
-        ];
-
-        self::kirimKeRole('afet_regional', $data);
-        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_penerima, $data);
-        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_pemberi, $data);
-        self::kirimKeRoleBandara('gm_kc', $mutasi->id_bandara_penerima, $data);
-        self::kirimKeRoleBandara('gm_kc', $mutasi->id_bandara_pemberi, $data);
-        self::kirimKeRole('ceo', $data);
-        self::kirimKeRole('ho', $data);
-    }
-
-    /** Salah satu verifikasi "Tidak Sesuai" → balik ke AFET Bandara Penerima, upload ulang mobilisasi */
-    public static function mutasiVerifikasiTidakSesuai(PengajuanMutasi $mutasi, Alat $alat): void
-    {
-        $data = [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => 'reject_mutasi',
-            'judul'     => 'Verifikasi Mobilisasi: Tidak Sesuai',
-            'pesan'     => "Verifikasi mobilisasi alat \"{$alat->nama_alat}\" menyatakan tidak sesuai. Admin AFET Bandara Penerima perlu upload ulang.",
-            'prioritas' => 'tinggi',
-            'meta'      => self::metaMutasi($mutasi),
-        ];
-
-        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_penerima, $data);
-        self::kirimKeRole('ho', $data);
-    }
-
-    /** Semua verifikasi "Konfirmasi" → giliran AFET Bandara Penerima upload sertifikasi */
-    public static function mutasiSiapSertifikasi(PengajuanMutasi $mutasi, Alat $alat): void
-    {
-        $data = [
-            'alat_id'   => $alat->id_alat,
-            'jenis'     => 'pengajuan_mutasi',
-            'judul'     => 'Verifikasi Lengkap — Siap Sertifikasi',
-            'pesan'     => "Semua pihak sudah konfirmasi mobilisasi alat \"{$alat->nama_alat}\". Admin AFET Bandara Penerima bisa upload sertifikasi.",
-            'prioritas' => 'sedang',
-            'meta'      => self::metaMutasi($mutasi),
-        ];
-
-        self::kirimKeRoleBandara('afet_bandara', $mutasi->id_bandara_penerima, $data);
-        self::kirimKeRole('ho', $data);
-    }
-
     /** Sertifikasi selesai → arsip akhir ke CEO, HO, Regional, dan pemohon */
-    public static function mutasiSelesai(PengajuanMutasi $mutasi, Alat $alat): void
+    public static function mutasiSelesai(PengajuanMutasi $mutasi, iterable $alatList): void
     {
+        $ringkas = self::ringkasAlat($alatList);
+
         $data = [
-            'alat_id'   => $alat->id_alat,
+            'alat_id'   => $ringkas['alat_id'],
             'jenis'     => 'sertifikasi_mutasi',
             'judul'     => 'Mutasi Selesai',
-            'pesan'     => "Proses mutasi alat \"{$alat->nama_alat}\" telah tuntas. Sertifikasi selesai dan didokumentasikan.",
+            'pesan'     => "Proses mutasi {$ringkas['teks']} telah tuntas. Sertifikasi selesai dan didokumentasikan.",
             'prioritas' => 'sedang',
             'meta'      => self::metaMutasi($mutasi),
         ];

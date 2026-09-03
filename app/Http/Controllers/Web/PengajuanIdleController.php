@@ -62,7 +62,21 @@ class PengajuanIdleController extends Controller
             ->orderByDesc('tanggal_pengajuan')
             ->paginate(15);
 
-        return view('admin.peralatan-idle.index', compact('pengajuan'));
+        // ⚠️ BARU: label status "Waiting Approval Dep Head" di tabel ini dulu
+        // selalu nge-print apa adanya dari kolom status (hardcoded di DB),
+        // padahal approver tahap 1 sebenarnya bisa Dep Head atau Div Head
+        // tergantung bandara (lihat Pengguna::approverTahap1IdleRole()).
+        // Dihitung per-bandara (bukan per-baris) biar gak N+1 query di halaman
+        // listing ini — cukup 1x query per bandara yang unik tampil di halaman.
+        $approverRoleByBandara = [];
+        foreach ($pengajuan as $item) {
+            $idBandaraAlat = optional($item->alat)->id_bandara;
+            if ($idBandaraAlat !== null && !array_key_exists($idBandaraAlat, $approverRoleByBandara)) {
+                $approverRoleByBandara[$idBandaraAlat] = \App\Models\Pengguna::approverTahap1IdleRole($idBandaraAlat);
+            }
+        }
+
+        return view('admin.peralatan-idle.index', compact('pengajuan', 'approverRoleByBandara'));
     }
 
     /**
@@ -224,13 +238,25 @@ class PengajuanIdleController extends Controller
         $idBandara = session('pengguna.id_bandara');
         $idLokasi = session('pengguna.id_lokasi');
 
-        $isDepHeadBerwenang = $role === 'dep_head'
+        // ⚠️ BARU: approver tahap 1 dideteksi otomatis per bandara — Dep Head
+        // kalau bandara itu punya struktur Dep Head (mis. CGK), kalau tidak
+        // maka Div Head yang mengambil alih. Null berarti bandara ini belum
+        // punya akun approver tahap 1 sama sekali (lihat approverTahap1IdleRole()).
+        $idBandaraAlat = $pengajuan->alat->id_bandara ?? null;
+        $approverTahap1Role = \App\Models\Pengguna::approverTahap1IdleRole($idBandaraAlat);
+
+        $isDepHeadBerwenang = $approverTahap1Role !== null
+            && $role === $approverTahap1Role
             && $pengajuan->status === 'Waiting Approval Dep Head'
-            && $idBandara == ($pengajuan->alat->id_bandara ?? null)
+            && $idBandara == $idBandaraAlat
             && ($idLokasi === null || $idLokasi == $pengajuan->id_lokasi_asal)
             && $this->alatMasukCakupanUnit($pengajuan->alat);
 
-        return view('admin.peralatan-idle.show', compact('pengajuan', 'isDepHeadBerwenang'));
+        // Bandara ini belum punya akun Dep Head maupun Div Head — pengajuan
+        // akan nyangkut di tahap 1 sampai salah satu akun tsb dibuatkan.
+        $tahap1Stuck = $pengajuan->status === 'Waiting Approval Dep Head' && $approverTahap1Role === null;
+
+        return view('admin.peralatan-idle.show', compact('pengajuan', 'isDepHeadBerwenang', 'approverTahap1Role', 'tahap1Stuck'));
     }
 
     public function approve($id)
@@ -241,12 +267,19 @@ class PengajuanIdleController extends Controller
         $role = session('pengguna.role');
 
         if ($pengajuan->status === 'Waiting Approval Dep Head') {
-            // ⚠️ DIUBAH: yang berwenang sekarang Dep Head (bukan Div Head lagi).
-            // Dibatasi ke bandara + lokasinya (kalau ada), DAN kalau akun Dep
-            // Head ini terikat ke 1 unit kerja spesifik, alat pengajuan ini
-            // juga harus masuk cakupan unit itu (mis. Dep Head SSES tidak
-            // boleh approve pengajuan idle alat milik unit BHS).
-            if ($role !== 'dep_head' || $idBandara != $pengajuan->alat->id_bandara ||
+            // ⚠️ BARU: approver tahap 1 dideteksi otomatis per bandara — Dep
+            // Head kalau bandara itu punya struktur Dep Head (mis. CGK), kalau
+            // tidak maka Div Head yang mengambil alih (lihat
+            // Pengguna::approverTahap1IdleRole()). Dibatasi ke bandara +
+            // lokasinya (kalau ada), DAN kalau akunnya terikat ke 1 unit kerja
+            // spesifik, alat pengajuan ini juga harus masuk cakupan unit itu.
+            $approverTahap1Role = \App\Models\Pengguna::approverTahap1IdleRole($pengajuan->alat->id_bandara ?? null);
+
+            if ($approverTahap1Role === null) {
+                return back()->withErrors(['status' => 'Bandara ini belum punya akun Dep Head maupun Div Head. Hubungi Admin AFET Regional untuk membuatkan salah satu akun tersebut sebelum pengajuan ini bisa diproses.']);
+            }
+
+            if ($role !== $approverTahap1Role || $idBandara != $pengajuan->alat->id_bandara ||
                 ($idLokasi !== null && $idLokasi != $pengajuan->id_lokasi_asal) ||
                 ! $this->alatMasukCakupanUnit($pengajuan->alat)) {
                 abort(403, 'Anda tidak berwenang memproses pengajuan ini.');
@@ -264,8 +297,10 @@ class PengajuanIdleController extends Controller
 
             Notifikasi::buatMenungguApprovalAfetRegional($pengajuan->alat, session('pengguna.nama'));
 
+            $labelApprover = $approverTahap1Role === 'dep_head' ? 'Dep Head' : 'Div Head';
+
             return redirect()->route('admin.peralatan-idle.index')
-                ->with('success', 'Disetujui Dep Head. Menunggu approval final Admin AFET Regional.');
+                ->with('success', "Disetujui {$labelApprover}. Menunggu approval final Admin AFET Regional.");
         }
 
         if ($pengajuan->status === 'Waiting Approval Admin AFET') {
@@ -311,8 +346,15 @@ class PengajuanIdleController extends Controller
         }
 
         if ($pengajuan->status === 'Waiting Approval Dep Head') {
-            // ⚠️ DIUBAH: Dep Head yang berwenang reject tahap 1 (bukan Div Head lagi).
-            if ($role !== 'dep_head' || $idBandara != $pengajuan->alat->id_bandara ||
+            // ⚠️ BARU: sama seperti approve() — approver tahap 1 dideteksi
+            // otomatis per bandara (Dep Head kalau ada, kalau tidak Div Head).
+            $approverTahap1Role = \App\Models\Pengguna::approverTahap1IdleRole($pengajuan->alat->id_bandara ?? null);
+
+            if ($approverTahap1Role === null) {
+                return back()->withErrors(['status' => 'Bandara ini belum punya akun Dep Head maupun Div Head. Hubungi Admin AFET Regional untuk membuatkan salah satu akun tersebut sebelum pengajuan ini bisa diproses.']);
+            }
+
+            if ($role !== $approverTahap1Role || $idBandara != $pengajuan->alat->id_bandara ||
                 ($idLokasi !== null && $idLokasi != $pengajuan->id_lokasi_asal) ||
                 ! $this->alatMasukCakupanUnit($pengajuan->alat)) {
                 abort(403, 'Anda tidak berwenang memproses pengajuan ini.');
@@ -394,6 +436,45 @@ class PengajuanIdleController extends Controller
 
         return redirect()->route('admin.peralatan-idle.index')
             ->with('success', 'Pengajuan idle diajukan ulang dan menunggu approval Dep Head.');
+    }
+
+    /**
+     * Tampilkan / unduh dokumen langsung dari disk (bukan lewat symlink
+     * public/storage) supaya semua tipe file — termasuk foto jpg/jpeg/png —
+     * bisa dipreview di browser tanpa 404.
+     */
+    public function downloadDokumen($idDokumen)
+    {
+        $dokumen = DokumenPengajuanIdle::with('pengajuan.alat')->findOrFail($idDokumen);
+
+        // Pastikan user memang punya akses ke pengajuan idle terkait
+        // (dipakai bersama oleh halaman Idle & halaman Booking).
+        $role = session('pengguna.role');
+        $idBandara = session('pengguna.id_bandara');
+
+        if ($this->isBandaraLocked($role)) {
+            $idBandaraAlat = optional($dokumen->pengajuan->alat)->id_bandara;
+            $bukanPemilik = $idBandara != $idBandaraAlat;
+            $bukanPemohon = session('pengguna.id') != $dokumen->pengajuan->id_pengguna;
+
+            if ($bukanPemilik && $bukanPemohon) {
+                abort(403, 'Anda tidak berwenang mengakses dokumen ini.');
+            }
+        }
+
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($dokumen->path_file)) {
+            abort(404, 'Dokumen tidak ditemukan.');
+        }
+
+        $path = $disk->path($dokumen->path_file);
+        $mimeType = $disk->mimeType($dokumen->path_file);
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $dokumen->nama_file . '"',
+        ]);
     }
 
     public function hapusDokumen($idPengajuan, $idDokumen)

@@ -38,8 +38,22 @@ class PengajuanBooking extends Model
         return $this->belongsTo(Bandara::class, 'id_bandara_penerima', 'id_bandara');
     }
 
-    public function mutasi()
+    // FK id_booking sekarang ada di mutasi_alat (1 pengajuan mutasi bisa mencakup
+    // banyak alat/booking sekaligus), bukan lagi langsung di pengajuan_mutasi.
+    public function detailMutasi()
     {
-        return $this->hasOne(PengajuanMutasi::class, 'id_booking', 'id_booking');
+        return $this->hasOne(MutasiAlat::class, 'id_booking', 'id_booking');
+    }
+
+    public function pengajuanMutasi()
+    {
+        return $this->hasOneThrough(
+            PengajuanMutasi::class,
+            MutasiAlat::class,
+            'id_booking',              // FK di mutasi_alat yang mengarah ke booking ini
+            'id_pengajuan_mutasi',     // FK di pengajuan_mutasi
+            'id_booking',              // local key di pengajuan_booking
+            'id_pengajuan_mutasi'      // local key di mutasi_alat
+        );
     }
 }

@@ -80,4 +80,54 @@ class Alat extends Model
     {
         return $this->hasMany(PengajuanIdle::class, 'id_alat', 'id_alat');
     }
+
+    /**
+     * ⚠️ BARU: Update kode_alat mengikuti pindah bandara saat mutasi selesai.
+     *
+     * Format kode_alat standar: 14.01.01.04.CGK.T1.S1.XX.001 (dipisah titik),
+     * dengan segmen kode bandara ada di antara segmen-segmen tsb (mis. "CGK").
+     *
+     * Strategi:
+     * 1. Cari segmen yang PERSIS sama dengan kode bandara lama (case-insensitive).
+     * 2. Kalau tidak ketemu (format kode_alat tidak baku / sudah beda),
+     *    fallback ke posisi standar (segmen ke-5 / index 4) supaya kode
+     *    tetap otomatis ke-update mengikuti bandara tujuan, bukan malah
+     *    dibiarkan nyangkut ke bandara lama.
+     *
+     * Tidak melakukan apa pun kalau kode_alat kosong atau kode bandara
+     * lama & baru sama (alat tidak pindah bandara).
+     */
+    public function updateKodeBandara(string $kodeBandaraLama, string $kodeBandaraBaru): void
+    {
+        if (empty($this->kode_alat) || empty($kodeBandaraBaru)) {
+            return;
+        }
+
+        $kodeBandaraLama = strtoupper(trim($kodeBandaraLama));
+        $kodeBandaraBaru = strtoupper(trim($kodeBandaraBaru));
+
+        if ($kodeBandaraLama === $kodeBandaraBaru) {
+            return;
+        }
+
+        $segmen = explode('.', $this->kode_alat);
+
+        $idxDitemukan = null;
+        foreach ($segmen as $i => $s) {
+            if (strcasecmp(trim($s), $kodeBandaraLama) === 0) {
+                $idxDitemukan = $i;
+                break;
+            }
+        }
+
+        // Fallback: posisi standar kode bandara ada di segmen ke-5 (index 4)
+        if ($idxDitemukan === null && array_key_exists(4, $segmen)) {
+            $idxDitemukan = 4;
+        }
+
+        if ($idxDitemukan !== null) {
+            $segmen[$idxDitemukan] = $kodeBandaraBaru;
+            $this->kode_alat = implode('.', $segmen);
+        }
+    }
 }

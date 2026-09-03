@@ -20,7 +20,7 @@ class DokumenMutasi extends Model
     const JENIS = [
         'mapping_kebutuhan' => 'Mapping Kebutuhan',
         'pemastian_idle'    => 'Pemastian Fasilitas Idle',
-        'mobilisasi'        => 'Mobilisasi',
+        'terima_barang'     => 'BA Penerimaan Barang',
         'sertifikasi'       => 'Sertifikasi',
     ];
 

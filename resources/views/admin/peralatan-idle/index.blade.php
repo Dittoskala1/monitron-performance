@@ -110,9 +110,20 @@
                                     'Waiting Approval Admin AFET' => 'bg-info text-dark',
                                     default => 'bg-warning text-dark', // Waiting Approval Dep Head
                                 };
+
+                                // ⚠️ BARU: label ditampilkan dinamis. Kolom status di DB tetap
+                                // literal 'Waiting Approval Dep Head' (gak diubah), tapi teks yang
+                                // ditampilkan ke user ikut siapa approver tahap 1 sebenarnya di
+                                // bandara alat ini (Dep Head atau Div Head).
+                                $statusLabel = $p->status;
+                                if ($p->status === 'Waiting Approval Dep Head') {
+                                    $idBandaraAlat = optional($p->alat)->id_bandara;
+                                    $approverRoleRow = $approverRoleByBandara[$idBandaraAlat] ?? null;
+                                    $statusLabel = 'Waiting Approval ' . ($approverRoleRow === 'div_head' ? 'Div Head' : 'Dep Head');
+                                }
                             @endphp
                             <span class="badge {{ $statusBadge }}">
-                                {{ $p->status }}
+                                {{ $statusLabel }}
                             </span>
                         </td>
                         <td>

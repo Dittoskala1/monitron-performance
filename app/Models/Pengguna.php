@@ -209,6 +209,41 @@ class Pengguna extends Authenticatable
     }
 
     /**
+     * ⚠️ BARU: tentukan role yang berwenang approve TAHAP 1 pengajuan idle
+     * untuk 1 bandara tertentu.
+     *
+     * Struktur "Dep Head per unit kerja" (BHS, CCIT, DANET, SSES, SSIT, dst)
+     * saat ini cuma ada di CGK. Bandara lain tidak punya struktur itu, jadi
+     * dideteksi otomatis (bukan hardcode kode bandara) supaya kalau suatu
+     * saat bandara lain juga dikasih struktur Dep Head, ini tetap jalan
+     * tanpa perlu ubah kode:
+     *
+     * - Kalau bandara ini punya minimal 1 akun 'dep_head' → dialah approver
+     *   tahap 1 (perilaku lama, tidak berubah).
+     * - Kalau tidak ada akun 'dep_head' sama sekali di bandara ini → 'div_head'
+     *   yang mengambil alih approve tahap 1 (bukan cuma "mengetahui" lagi).
+     * - Kalau bandara ini bahkan tidak punya akun 'div_head' juga → null,
+     *   artinya pengajuan idle di bandara ini akan "nyangkut" di tahap 1
+     *   sampai Admin AFET Regional membuatkan salah satu akun tsb.
+     */
+    public static function approverTahap1IdleRole(?int $idBandara): ?string
+    {
+        if (! $idBandara) {
+            return null;
+        }
+
+        if (self::where('role', 'dep_head')->where('id_bandara', $idBandara)->exists()) {
+            return 'dep_head';
+        }
+
+        if (self::where('role', 'div_head')->where('id_bandara', $idBandara)->exists()) {
+            return 'div_head';
+        }
+
+        return null;
+    }
+
+    /**
      * Cek apakah user adalah GM KC
      */
     public function isGmKc(): bool

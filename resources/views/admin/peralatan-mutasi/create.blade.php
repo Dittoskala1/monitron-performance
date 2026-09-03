@@ -14,50 +14,61 @@
     </div>
 @endif
 
+@php
+    $first = $bookings->first();
+    $bandaraPenerima = \App\Models\Bandara::find($first->id_bandara_penerima);
+    $pemesan = \App\Models\Pengguna::find($first->id_pengguna_pemesan);
+@endphp
+
 <div class="card stat-card mb-4">
     <div class="card-body p-4">
-        <p class="text-muted small fw-semibold text-uppercase mb-3">Data Booking</p>
+        <p class="text-muted small fw-semibold text-uppercase mb-3">
+            Data Booking ({{ $bookings->count() }} alat)
+        </p>
+
+        <div class="table-responsive mb-4">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Alat</th>
+                        <th>Kode Alat</th>
+                        <th>Bandara Pemberi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($bookings as $b)
+                        @php $a = $b->pengajuanIdle->alat ?? null; @endphp
+                        <tr>
+                            <td class="fw-semibold">{{ $a->nama_alat ?? $b->nama_alat_snapshot ?? '-' }}</td>
+                            <td>{{ $a->kode_alat ?? $b->kode_alat_snapshot ?? '-' }}</td>
+                            <td>
+                                <span class="badge bg-primary">{{ $a->bandara->kode_bandara ?? '-' }}</span>
+                                {{ $a->bandara->nama_bandara ?? '-' }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
 
         <div class="row g-4">
             <div class="col-md-6">
-                <dl class="row mb-0">
-                    <dt class="col-5 text-muted fw-normal">Alat</dt>
-                    <dd class="col-7 fw-semibold">
-                        {{ $booking->pengajuanIdle->alat->nama_alat ?? $booking->nama_alat_snapshot ?? '-' }}
-                    </dd>
-
-                    <dt class="col-5 text-muted fw-normal">Kode Alat</dt>
-                    <dd class="col-7">
-                        {{ $booking->pengajuanIdle->alat->kode_alat ?? $booking->kode_alat_snapshot ?? '-' }}
-                    </dd>
-
-                    <dt class="col-5 text-muted fw-normal">Bandara Pemberi</dt>
-                    <dd class="col-7">
-                        <span class="badge bg-primary">
-                            {{ $booking->pengajuanIdle->alat->bandara->kode_bandara ?? '-' }}
-                        </span>
-                        {{ $booking->pengajuanIdle->alat->bandara->nama_bandara ?? '-' }}
-                    </dd>
-                </dl>
-            </div>
-            <div class="col-md-6">
-                @php
-                    $bandaraPenerima = \App\Models\Bandara::find($booking->id_bandara_penerima);
-                    $pemesan = \App\Models\Pengguna::find($booking->id_pengguna_pemesan);
-                @endphp
                 <dl class="row mb-0">
                     <dt class="col-5 text-muted fw-normal">Bandara Penerima</dt>
                     <dd class="col-7">
                         {{ $bandaraPenerima->nama_bandara ?? '-' }}
                         ({{ $bandaraPenerima->kode_bandara ?? '-' }})
                     </dd>
-
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <dl class="row mb-0">
                     <dt class="col-5 text-muted fw-normal">Pemesan</dt>
                     <dd class="col-7">{{ $pemesan->nama ?? '-' }}</dd>
 
                     <dt class="col-5 text-muted fw-normal">Tanggal Booking</dt>
                     <dd class="col-7">
-                        {{ $booking->tanggal_booking ? \Carbon\Carbon::parse($booking->tanggal_booking)->format('d F Y H:i') : '-' }}
+                        {{ $first->tanggal_booking ? \Carbon\Carbon::parse($first->tanggal_booking)->format('d F Y H:i') : '-' }}
                     </dd>
                 </dl>
             </div>
@@ -69,7 +80,10 @@
     <div class="card-body p-4">
         <form method="POST" action="{{ route('admin.peralatan-mutasi.store') }}" enctype="multipart/form-data">
             @csrf
-            <input type="hidden" name="id_booking" value="{{ $booking->id_booking }}">
+
+            @foreach($bookings as $b)
+                <input type="hidden" name="bookings[]" value="{{ $b->id_booking }}">
+            @endforeach
 
             <div class="mb-3">
                 <label class="form-label fw-semibold">Keterangan Kebutuhan <span class="text-danger">*</span></label>
@@ -82,13 +96,13 @@
                 <input type="file" name="dokumen[]" class="form-control" multiple required
                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
                 <div class="form-text">
-                    Bisa unggah lebih dari satu file. Format yang didukung: PDF, JPG, PNG, Word, Excel. Maksimal 10MB per file.
+                    Bisa unggah lebih dari satu file. Format yang didukung: PDF, JPG, PNG, Word, Excel. Maksimal 10MB per file. Dokumen ini berlaku untuk seluruh alat di atas (1 pengajuan mutasi = 1 set dokumen).
                 </div>
             </div>
 
             <div class="alert alert-light border small mb-4">
                 <i class="bi bi-info-circle me-1"></i>
-                Setelah disimpan, pengajuan mutasi akan masuk ke tahap <strong>Waiting Approval CEO</strong>.
+                Setelah disimpan, pengajuan mutasi untuk <strong>{{ $bookings->count() }} alat</strong> ini akan masuk ke tahap <strong>Waiting Approval CEO</strong> dan diproses/di-approve bersamaan dalam satu aksi.
             </div>
 
             <div class="d-flex gap-2">
